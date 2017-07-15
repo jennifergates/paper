@@ -55,7 +55,7 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 	#look through all headers for handshake headers to log
 	for (i in hlist)
 	{
-		#print "New header -----------------------------------------";
+
 		#print hlist[i];
 		handshake=" ";
 
