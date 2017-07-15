@@ -56,7 +56,7 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 	for (i in hlist)
 	{
 
-		print hlist[i];
+		#print hlist[i];
 		handshake=" ";
 
 		# if this is a client request to handshake the client must indicate the version as 13 per the RFC
