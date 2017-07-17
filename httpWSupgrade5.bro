@@ -32,7 +32,7 @@ export {
 		ws_uri: string &log;
 		## Value of the User-Agent header from the client
 		ws_useragent: string &log;
-		##Not sure the key/accept is needed
+		#### Not sure the key/accept is needed
 		## Value of the client's SEC-WEBSOCKET-KEY if a request, still base64 encoded 
 		## or Value of the servers's SEC-WEBSOCKET-ACCEPT if a reply,  still base64 encoded 
 		ws_acceptkey: string &log;  
@@ -40,6 +40,11 @@ export {
 		ws_origin: string &log;
 		## Value of the LOCATION header
 		ws_location: string &log;
+		## Value of the SEC-WEBSOCKET-PROTOCOL header
+		ws_protocol: string &log;
+		#### Are these needed?
+		## Value of Sec-WebSocket-Extensions if present
+		ws_extensions: string &log;
 	};
 }
 
@@ -58,12 +63,14 @@ redef record connection += {
 #indexed by order in packet and containing name/value pairs
 event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 {
-	#initialize non-required fields
+	#initialize non-required fields or fields not always present in a packet
 	local origin = " - ";
 	local location = " - ";
 	local acceptkey = " - ";
 	local useragent= " - ";
 	local handshake=" ";
+	local wsproto=" - ";
+	local wsexts=" - ";
 	local svrip: addr;
 	local cltip: addr;
 	local svrp: port;
@@ -77,6 +84,8 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 		handshake=" ";
 
 		# if this is a client request to handshake, the client must indicate the version as 13 per the RFC
+		#### Should these "in" statements be set to lowercase comparisons since http rfc says case insensitive?
+		#### Or does bro http script normalize the field names?
 		if ("SEC-WEBSOCKET-VERSION" in hlist[i]$name && "13" in hlist[i]$value )  
 		{
 			print "1313131313131313";
@@ -98,6 +107,18 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 				if ( "USER-AGENT" in hlist[y]$name )
 				{
 					useragent=hlist[y]$value;
+				} ;
+				#### In the Request, there could be multiple headers for this. need to account for that somehow
+				#### or does bro already do that in the http script?
+				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[y]$name )
+				{
+					wsproto=hlist[y]$value;
+				} ;
+				#### In the Request, there could be multiple headers for this. need to account for that somehow?
+				#### or does bro already do that in the http script?
+				if ( "SEC-WEBSOCKET-EXTENSIONS" in hlist[y]$name )
+				{
+					wsexts=hlist[y]$value;
 				} ;
 			};
 
@@ -126,7 +147,16 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 				{
 					location=hlist[x]$value;
 				};
-
+				## Per the RFC, the protocol header can only appear once in a server reply, unlike in the request
+				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[x]$name )
+				{
+					wsproto=hlist[y]$value;
+				} ;				
+				#### These can be in multiple headers, also? or does bro already do that in the http script?
+				if ( "SEC-WEBSOCKET-EXTENSIONS" in hlist[x]$name )
+				{
+					wsexts=hlist[y]$value;
+				} ;
 			};
 
 		};
@@ -136,7 +166,7 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 		if (|handshake| > 1)
 		{
 		#Log format
-		local rec: httpWSupgrade::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake];
+		local rec: httpWSupgrade::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
 			
 		c$httpwsupgrade = rec;
 
