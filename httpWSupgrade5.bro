@@ -14,15 +14,31 @@ export {
 
 	#Define the record type that will contain the data to log.
 	type Info: record {
-		ws_handshake: string &log;
-		ws_svr: addr	&log;
-		ws_svrp: port &log;
+		## Indicates if log info is for WebSocket Handshake Request or Reply
+		ws_handshake: string &log;  
+		## Timestamp for when the request happened
+		ws_ts: time &log;
+		## Unique ID for the connection
+		ws_uid: string &log;
+		## Client IP requesting WebSocket
 		ws_client: addr	&log;
+		## Server IP providing WebSocket
+		ws_svr: addr	&log;
+		## Server port providing WebSocket
+		ws_svrp: port &log;
+		## Value of the HOST header
 		ws_host: string &log;
+		## URI used in the request
 		ws_uri: string &log;
+		## Value of the User-Agent header from the client
 		ws_useragent: string &log;
-		ws_acceptkey: string &log;
+		##Not sure the key/accept is needed
+		## Value of the client's SEC-WEBSOCKET-KEY if a request, still base64 encoded 
+		## or Value of the servers's SEC-WEBSOCKET-ACCEPT if a reply,  still base64 encoded 
+		ws_acceptkey: string &log;  
+		## Value of the ORIGIN header
 		ws_origin: string &log;
+		## Value of the LOCATION header
 		ws_location: string &log;
 	};
 }
@@ -57,16 +73,14 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 	{
 
 		#print hlist[i];
+		#start with a blank handshake until logic determines if this header is a websocket handshake header
 		handshake=" ";
 
-		# if this is a client request to handshake the client must indicate the version as 13 per the RFC
+		# if this is a client request to handshake, the client must indicate the version as 13 per the RFC
 		if ("SEC-WEBSOCKET-VERSION" in hlist[i]$name && "13" in hlist[i]$value )  
 		{
 			print "1313131313131313";
 			handshake="REQUEST";
-			svrip=c$id$resp_h;
-			svrp=c$id$resp_p;
-			cltip=c$id$orig_h;
 
 			for (y in hlist)
 			{
@@ -89,14 +103,11 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 
 		};
 
-		# if this is a server response to a successful handshake it will have a status code of 101
+		# if this is a server response to a successful handshake, it will have a status code of 101
 		if ("UPGRADE" in hlist[i]$name && "websocket" in to_lower(hlist[i]$value) && c$http?$status_code && c$http$status_code == 101)  #the ? lets you check if it exists
 		{
 			print "101101101101101101101101";
 			handshake = "REPLY";
-			svrip=c$id$resp_h;
-			svrp=c$id$resp_p;
-			cltip=c$id$orig_h;
 
 			for (x in hlist)
 			{
@@ -125,7 +136,7 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 		if (|handshake| > 1)
 		{
 		#Log format
-		local rec: httpWSupgrade::Info = [$ws_client=cltip, $ws_svr=svrip, $ws_svrp=svrp, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake];
+		local rec: httpWSupgrade::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake];
 			
 		c$httpwsupgrade = rec;
 
