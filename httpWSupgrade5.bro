@@ -90,6 +90,7 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 		{
 			print "1313131313131313";
 			handshake="REQUEST";
+			
 
 			for (y in hlist)
 			{
@@ -108,17 +109,27 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 				{
 					useragent=hlist[y]$value;
 				} ;
-				#### In the Request, there could be multiple headers for this. need to account for that somehow
-				#### or does bro already do that in the http script?
+				#### In the Request, there could be multiple headers for protocols
 				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[y]$name )
 				{
-					wsproto=hlist[y]$value;
+					if ( wsproto == " - " )
+					{
+						wsproto=hlist[y]$value;
+					} else {
+						wsproto+=hlist[y]$value;
+					} ;
+					print hlist[y]$value;
 				} ;
-				#### In the Request, there could be multiple headers for this. need to account for that somehow?
-				#### or does bro already do that in the http script?
+				#### In the Request, there could be multiple headers for extensions
 				if ( "SEC-WEBSOCKET-EXTENSIONS" in hlist[y]$name )
 				{
-					wsexts=hlist[y]$value;
+					if ( wsexts == " - " )
+					{ 
+						wsexts=hlist[y]$value;
+					} else {
+						wsexts+=hlist[y]$value;
+					};
+					print hlist[y]$value;
 				} ;
 			};
 
@@ -150,12 +161,17 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 				## Per the RFC, the protocol header can only appear once in a server reply, unlike in the request
 				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[x]$name )
 				{
-					wsproto=hlist[y]$value;
+					wsproto=hlist[x]$value;
 				} ;				
 				#### These can be in multiple headers, also? or does bro already do that in the http script?
 				if ( "SEC-WEBSOCKET-EXTENSIONS" in hlist[x]$name )
 				{
-					wsexts=hlist[y]$value;
+					if ( wsexts == " - " )
+					{ 
+						wsexts=hlist[x]$value;
+					} else {
+						wsexts+=hlist[x]$value;
+					};
 				} ;
 			};
 
