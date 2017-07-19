@@ -1,0 +1,25 @@
+# Simple parser for the WebSockets protocol
+#
+#
+
+module WS;
+
+import Spicy;
+
+export type Message = unit {
+        first2: bitfield(16) {
+                fin: 0;
+                rsvd: 1..3;
+                op: 4..7;
+                mask: 8;
+                pay1: 9..15;
+        } &bitorder = Spicy::BitOrder::MSB0;
+
+        pay2: uint<16>;
+        data: bytes &eod;
+
+        on %done {
+                print self.first2;
+                print self;
+        }
+};
