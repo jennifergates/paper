@@ -13,7 +13,7 @@ export type Message = unit {
                 op: 4..7;
                 mask: 8;
                 pay1: 9..15;
-        } &bitorder = Spicy::BitOrder::MSB0;
+        } &bitorder = Spicy::BitOrder::LSB0;
 
         pay2: uint<16>;
         data: bytes &eod;
