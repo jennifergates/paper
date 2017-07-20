@@ -1,27 +1,35 @@
 # Simple parser for the WebSockets protocol
 #
-#
+#  tested with:
+#  printf "\x81\x17" | spicy-driver ws.spicy
 
 module WS;
 
 import Spicy;
 
 export type Message = unit {
-        first2: bitfield(16) {
+        first2B: bitfield(16) {
                 fin: 0;
                 rsv1: 1;
-                rsv2: 1;
-                rsv3: 1;
-                op1: 4;
-                mask: 1;
-                pay1: 7;
-        } &bitorder = Spicy::BitOrder::LSB0;
+                rsv2: 2;
+                rsv3: 3;
+                op: 4..7;
+                mask: 8;
+                pay1: 9..15;
+        } &bitorder = Spicy::BitOrder::MSB0;
 
-        pay2: uint<16>;
-        data: bytes &eod;
+        chunk: bytes &eod;
 
         on %done {
-                print self.first2;
                 print self;
+                if ( self.first2B.pay1 < 126) {
+                        print self.first2B.pay1;
+                }
+                if (self.first2B.pay1 == 126) {
+                        print "126";
+                }
+                if (self.first2B.pay1 == 127) {
+                        print "127";
+                }
         }
 };
