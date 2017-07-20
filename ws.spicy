@@ -1,7 +1,8 @@
 # Simple parser for the WebSockets protocol
 #
 #  tested with:
-#  printf "\x81\x17" | spicy-driver ws.spicy
+#  printf "\x81\x8f\xb7\xce\xfd\x57\xdf\xab\x91\x3b\xd8\xee\x8a\x32\xd5\xbd\x92\x34\xdc\xab\x89" | spicy-driver ws.spicy
+#
 
 module WS;
 
@@ -25,9 +26,11 @@ export type Message = unit {
         };
 
         switch ( self.first2B.mask ) {
-                1 -> maskkey: uint<16>;
+                1 -> maskkey: bytes &length=4;
                 0 -> : void;
         };
+
+        data: bytes &eod;
 
         on %done {
                 print self;
@@ -43,9 +46,3 @@ type ExtPay = unit {
 type ExtPayC = unit {
         pay3: uint<64>;
 };
-
-#type NormPay = unit {
-#       on %done {
-#               print self;
-#       }
-#};
