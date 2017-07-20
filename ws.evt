@@ -1,0 +1,7 @@
+grammar ws.spicy;
+
+protocol analyzer spicy::WS:
+    parse with WS::Message,
+    port 80/tcp;
+
+on WS::Message -> event ws::message($conn, self.first2B.op);
