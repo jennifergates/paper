@@ -1,7 +1,7 @@
 grammar ws.spicy;
 
 protocol analyzer spicy::WS over TCP:
-    parse with WS::Message,
+    parse with WS::WS_Message,
     port 80/tcp;
 
-on WS::Message -> event message($conn, self.first2B.op);
+on WS::WS_Message -> event ws_message($conn, self.first2B.op);
