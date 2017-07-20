@@ -9,7 +9,7 @@ module WS;
 import Spicy;
 
 
-export type Message = unit {
+export type WS_Message = unit {
         # start with first 2 bytes as a bitfield to get access to bit level flags
         first2B: bitfield(16) {
                 fin: 0;
