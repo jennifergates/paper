@@ -18,18 +18,33 @@ export type Message = unit {
                 pay1: 9..15;
         } &bitorder = Spicy::BitOrder::MSB0;
 
-        chunk: bytes &eod;
+        switch ( self.first2B.pay1 ) {
+                126 -> extpay: ExtPay;
+                127 -> extpayc: ExtPayC;
+                * -> normpay: NormPay;
+        };
 
         on %done {
                 print self;
-                if ( self.first2B.pay1 < 126) {
-                        print self.first2B.pay1;
-                }
-                if (self.first2B.pay1 == 126) {
-                        print "126";
-                }
-                if (self.first2B.pay1 == 127) {
-                        print "127";
-                }
+        }
+
+};
+
+
+type ExtPay = unit {
+        pay2: uint<16>;
+        data: bytes &eod;
+};
+
+type ExtPayC = unit {
+        pay3: uint<64>;
+        data: bytes &eod;
+};
+
+type NormPay = unit {
+        data: bytes &eod;
+
+        on %done {
+                print self;
         }
 };
