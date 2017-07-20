@@ -21,7 +21,12 @@ export type Message = unit {
         switch ( self.first2B.pay1 ) {
                 126 -> extpay: ExtPay;
                 127 -> extpayc: ExtPayC;
-                * -> normpay: NormPay;
+                * -> : void;
+        };
+
+        switch ( self.first2B.mask ) {
+                1 -> maskkey: uint<16>;
+                0 -> : void;
         };
 
         on %done {
@@ -33,18 +38,14 @@ export type Message = unit {
 
 type ExtPay = unit {
         pay2: uint<16>;
-        data: bytes &eod;
 };
 
 type ExtPayC = unit {
         pay3: uint<64>;
-        data: bytes &eod;
 };
 
-type NormPay = unit {
-        data: bytes &eod;
-
-        on %done {
-                print self;
-        }
-};
+#type NormPay = unit {
+#       on %done {
+#               print self;
+#       }
+#};
