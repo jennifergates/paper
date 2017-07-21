@@ -2,7 +2,12 @@ grammar ws.spicy;
 
 protocol analyzer WS over TCP:
     parse with WS::WS_Message,
+    port 9696/tcp,
+    port 80/tcp,
     port 12345/tcp;
 
 on WS::WS_Message::first2B ->
-        event ws_message($conn, self.first2B.op);
+        event ws_message($conn, self.first2B.op, self.first2B.mask);
+
+on WS::WS_Message::maskkey ->
+        event ws_masked($conn, self.maskkey, self.data);
