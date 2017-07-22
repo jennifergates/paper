@@ -1,0 +1,12 @@
+
+module WS_HANDSHAKE;
+
+import Spicy;
+
+export type WS_Handshake = unit {
+               : /^(GET|get|Get) /;
+#              : /.+/;
+               : /.+(Sec-WebSocket-Key|SEC-WEBSOCKET-KEY|sec-websocket-key):/;
+        key    : bytes &length=16;
+        on %done { print "KEY"; }
+};
