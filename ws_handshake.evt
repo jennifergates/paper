@@ -1,0 +1,10 @@
+grammar ws_handshake.spicy;
+
+protocol analyzer WS_HANDSHAKE over TCP:
+    parse with WS_HANDSHAKE::WS_Handshake,
+    port 9696/tcp,
+    port 80/tcp,
+    port 12345/tcp;
+
+on WS_HANDSHAKE::WS_Handshake->
+        event ws_handshake($conn, self.key);
