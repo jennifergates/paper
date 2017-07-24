@@ -3,10 +3,26 @@ module WS_HANDSHAKE;
 
 import Spicy;
 
+const BeforeColon = /(.|\r|\n| ).[^:]+/;
+const Colon = /: /;
+const DataValue = /.[^\x0d\x0a]+/;
+const LineEnd = /\x0d\x0a/;
+
 export type WS_Handshake = unit {
-               : /^(GET|get|Get) /;
-#              : /.+/;
-               : /.+(Sec-WebSocket-Key|SEC-WEBSOCKET-KEY|sec-websocket-key):/;
-        key    : bytes &length=16;
-        on %done { print "KEY"; }
+        get    : /^(GET|get|Get) /;
+        headers : list<Header>;
+        on %done {
+                print "Spicy parsed\n";
+        }
+};
+
+
+type Header = unit {
+        name    : BeforeColon;
+                : Colon;
+        value   : DataValue;
+                : LineEnd;
+        on %done {
+                print self.value;
+        }
 };
