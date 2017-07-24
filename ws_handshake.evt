@@ -7,4 +7,4 @@ protocol analyzer WS_HANDSHAKE over TCP:
     port 12345/tcp;
 
 on WS_HANDSHAKE::WS_Handshake->
-        event ws_handshake($conn, self.key);
+        event ws_handshake($conn, self.get);
