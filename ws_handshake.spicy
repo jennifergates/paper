@@ -1,4 +1,3 @@
-
 module WS_HANDSHAKE;
 
 import Spicy;
@@ -22,7 +21,10 @@ type Header = unit {
                 : Colon;
         value   : DataValue;
                 : LineEnd;
-        on %done {
-                print self.value;
+        on value {
+                if ( self.name.lower() == b"sec-websocket-key") {
+                        print self.name;
+                        print self.value;
+                }
         }
 };
