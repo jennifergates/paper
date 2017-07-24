@@ -8,8 +8,14 @@ const DataValue = /.[^\x0d\x0a]+/;
 const LineEnd = /\x0d\x0a/;
 
 export type WS_Handshake = unit {
+#       var key : string;
+
         get    : /^(GET|get|Get) /;
-        headers : list<Header>;
+        dvalue : DataValue;
+#               : LineEnd;
+        headers : list<Header()> ;
+        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+#        : bytes &eod;
         on %done {
                 print "Spicy parsed\n";
         }
@@ -17,14 +23,27 @@ export type WS_Handshake = unit {
 
 
 type Header = unit {
+#       dvalue  : DataValue;
+                : LineEnd;
         name    : BeforeColon;
                 : Colon;
         value   : DataValue;
-                : LineEnd;
+#               : LineEnd;
+#       endhdrs : /\x0d\x0a\x0d\x0a/;
         on value {
-                if ( self.name.lower() == b"sec-websocket-key") {
-                        print self.name;
-                        print self.value;
-                }
+                print self.name;
+                print self.value;
+#               if ( Header.name.lower() == b"sec-websocket-key") {
+#                       print Header.name;
+#                       print Header.value;
+#               }
+        }
+
+        on %done {
+                print "done";
+#               print self.dvalue;
+#               print self.name;
+#               print self.value;
+#               print self.endhdrs;
         }
 };
