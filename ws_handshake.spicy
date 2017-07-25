@@ -10,35 +10,49 @@ const LineEnd = /\x0d\x0a/;
 export type WS_Handshake = unit {
 
         get    : /^(GET|get|Get) /;
-        dvalue : DataValue;
-        headers : list<Header> ;
-        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-        on %done {
-                print "\n*****ws_handshake.spicy WS_Handshake on done:";
-#               print self;
-                print |self.headers|;
-                print self.headers;
-        }
+	dvalue : DataValue;
+	headers : list<Header> ;
+	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+        on %done { 
+		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
+#		print self;
+		print |self.headers|;
+		print self.headers;
+	}
 };
 
 
 export type Header = unit {
 
-                : LineEnd;
-        name    : BeforeColon;
-                : Colon;
-        value   : DataValue;
-        on value {
-#               print self.name;
-#               print self.value;
-                if ( self.name.lower() == b"sec-websocket-key") {
-                		print "\n*****ws_handshake.spicy Header on value if stmt:\n";
-                        print self.name;
-                        print self.value;
-                }
-        }
+		: LineEnd;
+	name	: BeforeColon;
+		: Colon;
+	value	: DataValue;
+	on value { 
+#		print self.name;
+#		print self.value;
+		if ( self.name.lower() == b"sec-websocket-key") {
+			print "\n*****ws_handshake.spicy Header on value if stmt:\n";
+			print self.name;
+			print self.value;
+		}
+	}
 
-#       on %done {
-#               print "print "\n*****ws_handshake.spicy Header on:\ndone";
-#       }
+#	on %done {
+#		print "print "\n*****ws_handshake.spicy Header on:\ndone";
+#	}
+};
+
+export type WS_Handshake_Success = unit {
+
+        success     : /^HTTP\/1\.1 101 Switching Protocols/;
+                    : LineEnd;
+        headers     : list<Header> ;
+        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+        on %done {
+                print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
+#               print self;
+                print |self.headers|;
+                print self.headers;
+        }
 };
