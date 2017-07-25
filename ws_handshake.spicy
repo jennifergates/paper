@@ -45,14 +45,23 @@ export type Header = unit {
 
 export type WS_Handshake_Success = unit {
 
-        success     : /^HTTP\/1\.1 101 Switching Protocols/;
-                    : LineEnd;
-        headers     : list<Header> ;
+        success     : /^(HTTP|http)/;
+	dvalue	    : DataValue;
+        svrheaders     : list<Header> ;
         end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+
+	on %init {
+		print "Success running";
+	}
+
+	on success {
+		print self.success;
+	}
+
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
 #               print self;
-                print |self.headers|;
-                print self.headers;
+#                print |self.svrheaders|;
+                print self.svrheaders;
         }
 };
