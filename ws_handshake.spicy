@@ -13,9 +13,10 @@ export type WS_Handshake = unit {
 	dvalue : DataValue;
 	headers : list<Header> ;
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+	ws_message : WS_Message;
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
-#		print self;
+		print self;
 		print |self.headers|;
 		print self.headers;
 	}
@@ -64,4 +65,49 @@ export type WS_Handshake_Success = unit {
 #                print |self.svrheaders|;
                 print self.svrheaders;
         }
+};
+
+export type WS_Message = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+        first2B: bitfield(16) {
+                fin: 0;
+                rsv1: 1;
+                rsv2: 2;
+                rsv3: 3;
+                op: 4..7;
+                mask: 8;
+                pay1: 9..15;
+        } &bitorder = Spicy::BitOrder::MSB0;
+	
+	# determine payload length and start point for next field
+	switch ( self.first2B.pay1 ) {
+		126 -> extpay: ExtPay;
+		127 -> extpayc: ExtPayC;
+		* -> : void;
+	};
+	
+	# parse out masking key if payload is masked (from client)
+	switch ( self.first2B.mask ) {
+		1 -> maskkey: bytes &length=4;
+		0 -> : void;
+	};
+	
+	# grab the payload data. Leave unmasking to bro script
+	data: bytes &eod;
+
+	on %done {
+		# feedback while coding
+		print self;
+	}
+
+};
+
+# define this new type which parses out the extended payload length field 
+type ExtPay = unit {
+	pay2: uint<16>;
+};
+
+# define this new type which parses out the extended continued payload length field
+type ExtPayC = unit {
+	pay3: uint<64>;
 };
