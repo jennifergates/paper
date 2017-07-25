@@ -121,7 +121,9 @@ event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
 			print "1313131313131313";
 			handshake="REQUEST";
 			
-			uri = reqlinedata;
+						
+			local reqlinedatasplit= split_string_all(reqlinedata, /HTTP/);
+			uri = reqlinedatasplit[0];
 
 			for (y in hlist)
 			{
