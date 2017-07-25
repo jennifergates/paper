@@ -1,7 +1,8 @@
 grammar ws_handshake.spicy;
 
 protocol analyzer WS_HANDSHAKE over TCP:
-    parse with WS_HANDSHAKE::WS_Handshake,
+    parse originator with WS_HANDSHAKE::WS_Handshake,
+    parse responder with WS_HANDSHAKE::WS_Handshake_Success,
     port 9696/tcp,
     port 80/tcp,
     port 12345/tcp;
@@ -16,4 +17,4 @@ on WS_HANDSHAKE::WS_Handshake->
 	event allheaders($conn, self.headers);
 
 on WS_HANDSHAKE::WS_Handshake_Success->
-	event allheaders($conn, self.headers);
+	event allheaders($conn, self.svrheaders);
