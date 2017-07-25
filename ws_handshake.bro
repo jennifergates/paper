@@ -6,3 +6,9 @@ event ws_handshake(c: connection, get: string) {
 #       print headers;
         print " ";
 }
+
+event header(c: connection, name: string, value: string) {
+        if ( name == "Sec-WebSocket-Key") {
+                print value;
+        }
+}
