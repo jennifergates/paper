@@ -8,19 +8,22 @@ const DataValue = /.[^\x0d\x0a]+/;
 const LineEnd = /\x0d\x0a/;
 
 export type WS_Handshake = unit {
-#       var key : string;
 
         get    : /^(GET|get|Get) /;
         dvalue : DataValue;
-        headers : list<Header()> ;
+        headers : list<Header> ;
         end_of_hdrs : /\x0d\x0a\x0d\x0a/;
         on %done {
                 print "Spicy parsed\n";
+#               print self;
+                print |self.headers|;
+                print self.headers;
         }
 };
 
 
-type Header = unit {
+export type Header = unit {
+
                 : LineEnd;
         name    : BeforeColon;
                 : Colon;
