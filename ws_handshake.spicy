@@ -14,7 +14,7 @@ export type WS_Handshake = unit {
         headers : list<Header> ;
         end_of_hdrs : /\x0d\x0a\x0d\x0a/;
         on %done {
-                print "Spicy parsed\n";
+                print "\n*****ws_handshake.spicy WS_Handshake on done:";
 #               print self;
                 print |self.headers|;
                 print self.headers;
@@ -32,12 +32,13 @@ export type Header = unit {
 #               print self.name;
 #               print self.value;
                 if ( self.name.lower() == b"sec-websocket-key") {
+                		print "\n*****ws_handshake.spicy Header on value if stmt:\n";
                         print self.name;
                         print self.value;
                 }
         }
 
 #       on %done {
-#               print "done";
+#               print "print "\n*****ws_handshake.spicy Header on:\ndone";
 #       }
 };
