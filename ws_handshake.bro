@@ -27,9 +27,9 @@ export {
 		## Server port providing WebSocket
 		ws_svrp: port &log;
 		## Value of the HOST header
-		#ws_host: string &log;
+		ws_host: string &log;
 		## URI used in the request
-		#ws_uri: string &log;
+		ws_uri: string &log;
 		## Value of the User-Agent header from the client
 		ws_useragent: string &log;
 		#### Not sure the key/accept is needed to detect any exploits
@@ -68,12 +68,15 @@ type BroHdr: record {
 # define for Bro the vector that will be passed in from spicy parser as the headers list
 type BroHdrs: vector of BroHdr;
 
+
+#### Not needed?
 event ws_handshake(c: connection, get: string) {
 	print " ";
 	print "*****ws_handshake.bro ws_handshake event:";
         print get;
 }
 
+#### Not needed?
 event header(c: connection, name: string, value: string) {
 	if ( to_lower(name) == "sec-websocket-key") {
 		print " ";
@@ -82,11 +85,15 @@ event header(c: connection, name: string, value: string) {
 	}
 }
 
-event allheaders(c: connection, hlist: BroHdrs) {
+# event that is basically same data as http parser alone with custom bro script, which this code is from
+event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
         print " ";
         print "*****ws_handshake.bro allheaders event:";
 	#initialize non-required fields or fields not always present in a packet
 	#print c;
+	print reqlinedata;
+	local uri = " - ";
+	local host = " - ";
 	local origin = " - ";
 	local location = " - ";
 	local acceptkey = " - ";
@@ -114,6 +121,7 @@ event allheaders(c: connection, hlist: BroHdrs) {
 			print "1313131313131313";
 			handshake="REQUEST";
 			
+			uri = reqlinedata;
 
 			for (y in hlist)
 			{
@@ -122,6 +130,11 @@ event allheaders(c: connection, hlist: BroHdrs) {
 				{
 					acceptkey=hlist[y]$value;
 				} ;
+
+				if ( "host" in to_lower(hlist[y]$name) )
+                                {
+                                        host=hlist[y]$value;
+                                } ;
 
 				if ( "origin" in to_lower(hlist[y]$name) )
 				{
@@ -205,8 +218,8 @@ event allheaders(c: connection, hlist: BroHdrs) {
 		if (|handshake| > 1)
 		{
 		#Log format
-		#local rec: WS_HANDSHAKE::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
-		local rec: WS_HANDSHAKE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey,$ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
+		#local rec: WS_HANDSHAKE::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=host, $ws_uri=uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
+		local rec: WS_HANDSHAKE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey,$ws_host=host, $ws_uri=uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
 
 			
 		c$ws_handshake = rec;
