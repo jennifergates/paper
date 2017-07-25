@@ -14,3 +14,6 @@ on WS_HANDSHAKE::Header->
 
 on WS_HANDSHAKE::WS_Handshake->
 	event allheaders($conn, self.headers);
+
+on WS_HANDSHAKE::WS_Handshake_Success->
+	event allheaders($conn, self.headers);
