@@ -13,12 +13,12 @@ export type WS_Handshake = unit {
 	dvalue : DataValue;
 	headers : list<Header> ;
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-	ws_message : WS_Message;
+	ws_message : list<WS_Message>;
+
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
 		print self;
-		print |self.headers|;
-		print self.headers;
+#		print self.headers;
 	}
 };
 
@@ -29,19 +29,10 @@ export type Header = unit {
 	name	: BeforeColon;
 		: Colon;
 	value	: DataValue;
-	on value { 
-#		print self.name;
-#		print self.value;
-		if ( self.name.lower() == b"sec-websocket-key") {
-			print "\n*****ws_handshake.spicy Header on value if stmt:\n";
-			print self.name;
-			print self.value;
-		}
-	}
 
-#	on %done {
-#		print "print "\n*****ws_handshake.spicy Header on:\ndone";
-#	}
+	on %done {
+		print "\n*****ws_handshake.spicy Header on done";
+	}
 };
 
 export type WS_Handshake_Success = unit {
@@ -50,20 +41,14 @@ export type WS_Handshake_Success = unit {
 	dvalue	    : DataValue;
         svrheaders     : list<Header> ;
         end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-
+	ws_message : list<WS_Message>;
 	on %init {
 		print "Success running";
-	}
-
-	on success {
-		print self.success;
 	}
 
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
 #               print self;
-#                print |self.svrheaders|;
-                print self.svrheaders;
         }
 };
 
@@ -93,10 +78,15 @@ export type WS_Message = unit {
 	};
 	
 	# grab the payload data. Leave unmasking to bro script
-	data: bytes &eod;
-
+	#data: bytes &eod;
+        switch ( self.first2B.pay1 ) {
+                126 -> data: bytes &length=self.extpay.pay2;
+                127 -> data: bytes &length=self.extpayc.pay3;
+                * -> data: bytes &length=self.first2B.pay1;
+        };
 	on %done {
 		# feedback while coding
+		print "\n*****ws_handshake.spicy WS_Message print self  on done:";
 		print self;
 	}
 
