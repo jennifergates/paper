@@ -10,4 +10,7 @@ on WS_HANDSHAKE::WS_Handshake->
         event ws_handshake($conn, self.get);
 
 on WS_HANDSHAKE::Header->
-        event header($conn, self.name, self.value);
+	event header($conn, self.name, self.value);
+
+on WS_HANDSHAKE::WS_Handshake->
+	event allheaders($conn, self.headers);
