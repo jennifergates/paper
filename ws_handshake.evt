@@ -1,4 +1,4 @@
-grammar ws_handshake.spicy;
+rammar ws_handshake.spicy;
 
 protocol analyzer WS_HANDSHAKE over TCP:
     parse with WS_HANDSHAKE::WS_Handshake,
@@ -8,3 +8,6 @@ protocol analyzer WS_HANDSHAKE over TCP:
 
 on WS_HANDSHAKE::WS_Handshake->
         event ws_handshake($conn, self.get);
+
+on WS_HANDSHAKE::Header->
+        event header($conn, self.name, self.value);
