@@ -1,4 +1,4 @@
-rammar ws_handshake.spicy;
+grammar ws_handshake.spicy;
 
 protocol analyzer WS_HANDSHAKE over TCP:
     parse with WS_HANDSHAKE::WS_Handshake,
