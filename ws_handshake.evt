@@ -18,3 +18,9 @@ on WS_HANDSHAKE::WS_Handshake->
 
 on WS_HANDSHAKE::WS_Handshake_Success->
 	event allheaders($conn, self.svrheaders, self.dvalue);
+
+on WS_HANDSHAKE::WS_Message::first2B ->
+        event ws_message($conn, self.first2B.op, self.first2B.mask);
+
+on WS_HANDSHAKE::WS_Message::maskkey ->
+        event ws_masked($conn, self.maskkey, self.data);
