@@ -17,7 +17,7 @@ export {
 		## Indicates if log info is for WebSocket Handshake Request or Reply
 		ws_handshake: string &log;  
 		## Timestamp for when the request happened
-		ws_ts: time &log;
+		#ws_ts: time &log;
 		## Unique ID for the connection
 		ws_uid: string &log;
 		## Client IP requesting WebSocket
@@ -27,9 +27,9 @@ export {
 		## Server port providing WebSocket
 		ws_svrp: port &log;
 		## Value of the HOST header
-		ws_host: string &log;
+		#ws_host: string &log;
 		## URI used in the request
-		ws_uri: string &log;
+		#ws_uri: string &log;
 		## Value of the User-Agent header from the client
 		ws_useragent: string &log;
 		#### Not sure the key/accept is needed to detect any exploits
@@ -59,11 +59,13 @@ redef record connection += {
 	ws_handshake: Info &optional;
 };
 
+# define for Bro the record that will be passed in from spicy parser in the headers list
 type BroHdr: record {
 	name: string;
 	value: string;
 };
 
+# define for Bro the vector that will be passed in from spicy parser as the headers list
 type BroHdrs: vector of BroHdr;
 
 event ws_handshake(c: connection, get: string) {
@@ -73,7 +75,7 @@ event ws_handshake(c: connection, get: string) {
 }
 
 event header(c: connection, name: string, value: string) {
-	if ( name == "Sec-WebSocket-Key") {
+	if ( to_lower(name) == "sec-websocket-key") {
 		print " ";
 		print "*****ws_handshake.bro header event:";
 		print value;	
@@ -84,6 +86,7 @@ event allheaders(c: connection, hlist: BroHdrs) {
         print " ";
         print "*****ws_handshake.bro allheaders event:";
 	#initialize non-required fields or fields not always present in a packet
+	#print c;
 	local origin = " - ";
 	local location = " - ";
 	local acceptkey = " - ";
@@ -99,14 +102,14 @@ event allheaders(c: connection, hlist: BroHdrs) {
 	for (i in hlist)
 	{
 
-		#print hlist[i];
+		print hlist[i];
 		#start with a blank handshake until logic determines if this header is a websocket handshake header
 		handshake=" ";
 
 		# if this is a client request to handshake, the client must indicate the version as 13 per the RFC
 		#### Should these "in" statements be set to lowercase comparisons since http rfc says case insensitive?
 		#### Or does bro http script normalize the field names?
-		if ("SEC-WEBSOCKET-VERSION" in hlist[i]$name && "13" in hlist[i]$value )  
+		if ("sec-websocket-version" in to_lower(hlist[i]$name) && "13" in hlist[i]$value )  
 		{
 			print "1313131313131313";
 			handshake="REQUEST";
@@ -115,22 +118,22 @@ event allheaders(c: connection, hlist: BroHdrs) {
 			for (y in hlist)
 			{
 
-				if ( "SEC-WEBSOCKET-KEY" in hlist[y]$name )
+				if ( "sec-websocket-key" in to_lower(hlist[y]$name) )
 				{
 					acceptkey=hlist[y]$value;
 				} ;
 
-				if ( "ORIGIN" in hlist[y]$name )
+				if ( "origin" in to_lower(hlist[y]$name) )
 				{
 					origin=hlist[y]$value;
 				} ;
 
-				if ( "USER-AGENT" in hlist[y]$name )
+				if ( "user-agent" in to_lower(hlist[y]$name) )
 				{
 					useragent=hlist[y]$value;
 				} ;
 				#In the Request, there could be multiple protocols headers  
-				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[y]$name )
+				if ( "sec-websocket-protocol" in to_lower(hlist[y]$name) )
 				{
 					if ( wsproto == " - " )
 					{
@@ -140,7 +143,7 @@ event allheaders(c: connection, hlist: BroHdrs) {
 					} ;
 				} ;
 				# In the Request, there could be multiple extensions headers 
-				if ( "SEC-WEBSOCKET-EXTENSIONS" in hlist[y]$name )
+				if ( "sec-websocket-extensions" in to_lower(hlist[y]$name) )
 				{
 					if ( wsexts == " - " )
 					{ 
@@ -155,7 +158,8 @@ event allheaders(c: connection, hlist: BroHdrs) {
 
 		# if this is a server response to a successful handshake, it will have a status code of 101
 		# To test if a field that is &optional has been assigned a value, use the ?$operator
-		if ("UPGRADE" in hlist[i]$name && "websocket" in to_lower(hlist[i]$value) && c$http?$status_code && c$http$status_code == 101)  
+		#if ("upgrade" in to_lower(hlist[i]$name) && "websocket" in to_lower(hlist[i]$value) && c$http?$status_code && c$http$status_code == 101)  
+		if ("sec-websocket-accept" in to_lower(hlist[i]$name) )
 		{
 			print "101101101101101101101101";
 			handshake = "REPLY";
@@ -163,27 +167,27 @@ event allheaders(c: connection, hlist: BroHdrs) {
 			for (x in hlist)
 			{
 				
-				if ("SEC-WEBSOCKET-ACCEPT" in hlist[x]$name )
+				if ("sec-websocket-accept" in to_lower(hlist[x]$name) )
 				{
 					acceptkey=hlist[x]$value;
 				};
 
-				if ("WEBSOCKET-ORIGIN" in hlist[x]$name)
+				if ("websocket-origin" in to_lower(hlist[x]$name))
 				{
 					origin=hlist[x]$value;
 				};
 
-				if ("WEBSOCKET-LOCATION" in hlist[x]$name)
+				if ("websocket-location" in to_lower(hlist[x]$name))
 				{
 					location=hlist[x]$value;
 				};
 				# Per the RFC, the protocol header can only appear once in a server reply, unlike in the request
-				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[x]$name )
+				if ( "sec-websocket-protocol" in to_lower(hlist[x]$name) )
 				{
 					wsproto=hlist[x]$value;
 				} ;				
 				#In the Reply, there could be multiple extensions headers 
-				if ( "SEC-WEBSOCKET-EXTENSIONS" in hlist[x]$name )
+				if ( "sec-websocket-extensions" in to_lower(hlist[x]$name) )
 				{
 					if ( wsexts == " - " )
 					{ 
@@ -197,11 +201,13 @@ event allheaders(c: connection, hlist: BroHdrs) {
 		};
 
 
-		# if a handshake header was found, log the handshake header information to httpWSupgrade.log
+		# if a handshake header was found, log the handshake header information to ws_handshake.log
 		if (|handshake| > 1)
 		{
 		#Log format
-		local rec: WS_HANDSHAKE::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
+		#local rec: WS_HANDSHAKE::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
+		local rec: WS_HANDSHAKE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey,$ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
+
 			
 		c$ws_handshake = rec;
 
