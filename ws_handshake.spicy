@@ -13,7 +13,16 @@ export type WS_Handshake = unit {
 	dvalue : DataValue;
 	headers : list<Header> ;
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-	ws_message : list<WS_Message>;
+	ws_message1 : WS_Message;
+	ws_message2 : WS_Message;
+#	ws_message3 : WS_Message;
+#	ws_message4 : WS_Message;
+#	rest : bytes &length=1;
+
+#	on ws_message {
+#		print "\n*****ws_handshake.spicy WS_Handshake ws_message populated";
+#		print self.ws_message;
+#	}
 
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
@@ -22,6 +31,30 @@ export type WS_Handshake = unit {
 	}
 };
 
+export type WS_Handshake_Success = unit {
+
+        success     : /^(HTTP|http)/;
+        dvalue      : DataValue;
+        svrheaders     : list<Header> ;
+        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+        wss_message1  : WS_Message ;
+	wss_message2 : WS_Message;
+	wss_message3 : WS_Message;
+
+#        on %init {
+#                print "Success running";
+#        }
+
+#	on wss_message {
+#		print "\n*****ws_handshake.spicy WS_Handshake_Success wss_message has data:";
+#		print self.wss_message;
+#	}
+
+        on %done {
+                print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
+                print self;
+        }
+};
 
 export type Header = unit {
 
@@ -30,26 +63,10 @@ export type Header = unit {
 		: Colon;
 	value	: DataValue;
 
-	on %done {
-		print "\n*****ws_handshake.spicy Header on done";
-	}
-};
-
-export type WS_Handshake_Success = unit {
-
-        success     : /^(HTTP|http)/;
-	dvalue	    : DataValue;
-        svrheaders     : list<Header> ;
-        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-	ws_message : list<WS_Message>;
-	on %init {
-		print "Success running";
-	}
-
-        on %done {
-                print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
-#               print self;
-        }
+#	on %done {
+#		print "\n*****ws_handshake.spicy Header on done";
+#		print self;
+#	}
 };
 
 export type WS_Message = unit {
@@ -84,20 +101,28 @@ export type WS_Message = unit {
                 127 -> data: bytes &length=self.extpayc.pay3;
                 * -> data: bytes &length=self.first2B.pay1;
         };
+
+	on %error {
+		print "\n*****ws_handshake.spicy WS_Message ERROR";
+	}
+
 	on %done {
 		# feedback while coding
-		print "\n*****ws_handshake.spicy WS_Message print self  on done:";
+		print "\n*****ws_handshake.spicy WS_Message print self on done:";
 		print self;
 	}
 
 };
 
 # define this new type which parses out the extended payload length field 
-type ExtPay = unit {
+export type ExtPay = unit {
 	pay2: uint<16>;
+	on %done {
+		print "pay2 assigned";
+	}
 };
 
 # define this new type which parses out the extended continued payload length field
-type ExtPayC = unit {
+export type ExtPayC = unit {
 	pay3: uint<64>;
 };
