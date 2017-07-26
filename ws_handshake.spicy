@@ -22,18 +22,12 @@ export type WS_Handshake = unit {
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
 
 	ws_data : bytes &eod &convert=terminate($$) &transient -> self.sub;
-#        ws_messages : list<WS_Message> &count=2;
-#	ws_messages : list<WS_Message> &until_including($$.first2B.op == 8 );
-#	ws_messages : list<WS_Message> &until( ! $$?.first2B )
-#			foreach { print $$.?first2B; }
-#	ws_message1 : WS_Message;
 
 	on %init {
 		self.sub.connect(new Sub());
 	}
 
 	on ws_data {
-#		ws_messages = list<WS_Message> &until(/\x53\x50\x49\x43\x59\x6a\x6c\x67/);		
 		print "\n*****ws_handshake.spicy WS_Handshake ws_data populated";
 		print self.ws_data;
 	}
@@ -41,13 +35,17 @@ export type WS_Handshake = unit {
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
 		print self;
-#		print self.headers;
 	}
 };
 
 export type Sub = unit {
 	ws_messages : list<WS_Message>;
-		    : DataEnd;
+		    : DataEnd
+		
+	on ws_messages {
+		print "\n*****ws_handshake.spicy Sub on ws_messages:";
+		print self.ws_messages;
+	}
 };
 
 export type WS_Handshake_Success = unit {
