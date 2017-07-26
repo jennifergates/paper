@@ -6,28 +6,37 @@ const BeforeColon = /(.|\r|\n| ).[^:]+/;
 const Colon = /: /;
 const DataValue = /.[^\x0d\x0a]+/;
 const LineEnd = /\x0d\x0a/;
+const DataEnd = b"\x53\x50\x49\x43\x59\x6a\x6c\x67";
+
+#function to add a delimiting byte at the end of the ws packets to allow list to properly terminate
+bytes terminate(b: bytes) {
+	return b + DataEnd;
+}
 
 export type WS_Handshake = unit {
+	var sub: sink;
 
         get    : /^(GET|get|Get) /;
 	dvalue : DataValue;
 	headers : list<Header> ;
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
 
-	ws_messages : list<WS_Message>;
-#   ws_messages : list<WS_Message> &until_including($$.first2B.op == 8 );
-#   ws_messages : list<WS_Message> &until( ! $$?.first2B )
-#                       foreach { print $$.?first2B; }
+	ws_data : bytes &eod &convert=terminate($$) &transient -> self.sub;
+#        ws_messages : list<WS_Message> &count=2;
+#	ws_messages : list<WS_Message> &until_including($$.first2B.op == 8 );
+#	ws_messages : list<WS_Message> &until( ! $$?.first2B )
+#			foreach { print $$.?first2B; }
 #	ws_message1 : WS_Message;
-#	ws_message2 : WS_Message;
-#	ws_message3 : WS_Message;
-#	ws_message4 : WS_Message;
-#	rest : bytes &length=1;
 
-#	on ws_message {
-#		print "\n*****ws_handshake.spicy WS_Handshake ws_message populated";
-#		print self.ws_message;
-#	}
+	on %init {
+		self.sub.connect(new Sub());
+	}
+
+	on ws_data {
+#		ws_messages = list<WS_Message> &until(/\x53\x50\x49\x43\x59\x6a\x6c\x67/);		
+		print "\n*****ws_handshake.spicy WS_Handshake ws_data populated";
+		print self.ws_data;
+	}
 
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
@@ -36,14 +45,20 @@ export type WS_Handshake = unit {
 	}
 };
 
+export type Sub = unit {
+	ws_messages : list<WS_Message>;
+		    : DataEnd;
+};
+
 export type WS_Handshake_Success = unit {
 
-    success     : /^(HTTP|http)/;
-	dvalue      : DataValue;
-	svrheaders     : list<Header> ;
-    end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-    wss_messages : list<WS_Message> &count=1;
-#    wss_message1  : WS_Message ;
+        success     : /^(HTTP|http)/;
+        dvalue      : DataValue;
+        svrheaders     : list<Header> ;
+        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+	wss_data    : bytes &eod &convert=terminate($$);
+#	wss_messages : list<WS_Message> &count=2;
+#       wss_message1  : WS_Message ;
 #	wss_message2 : WS_Message;
 #	wss_message3 : WS_Message;
 
