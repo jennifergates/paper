@@ -1,0 +1,183 @@
+module WS_HANDSHAKE;
+
+import Spicy;
+
+const BeforeColon = /(.|\r|\n| ).[^:]+/;
+const Colon = /: /;
+const DataValue = /.[^\x0d\x0a]+/;
+const LineEnd = /\x0d\x0a/;
+
+export type WS_Handshake = unit {
+
+    get    : /^(GET|get|Get) /;
+	dvalue : DataValue;
+	headers : list<Header> ;
+	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+	ws_messages : list<WS_Message>;
+
+    on %done { 
+		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
+		print self;
+	}
+};
+
+
+export type Header = unit {
+
+			: LineEnd;
+	name	: BeforeColon;
+			: Colon;
+	value	: DataValue;
+
+	on %done {
+		print "\n*****ws_handshake.spicy Header on done";
+	}
+};
+
+export type WS_Handshake_Success = unit {
+
+    success     : /^(HTTP|http)/;
+	dvalue	    : DataValue;
+    svrheaders     : list<Header> ;
+    end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+	ws_messages : list<WS_Message>;
+	on %init {
+		print "Success running";
+	}
+
+        on %done {
+                print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
+#               print self;
+        }
+};
+
+export type WS_Message = unit {
+	switch { 
+		ws_pay1_masked: WS_Pay1_Masked;
+		ws_pay1_unmasked: WS_Pay1_Unmasked;
+		ws_pay2_masked: WS_Pay2_Masked;
+		ws_pay2_unmasked: WS_Pay2_Unmasked;
+		ws_pay3_masked: WS_Pay3_Masked;
+		ws_pay3_unmasked: WS_Pay3_Unmasked; 
+	}
+};
+
+
+
+# 6 Different types of WebSockets packet parsing
+type WS_Pay1_Masked = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+    first2B: bitfield(16) {
+		fin: 0;
+		rsv1: 1;
+		rsv2: 2;
+		rsv3: 3;
+		op: 4..7;
+		mask: 8;
+		pay1: 9..15;
+    } &bitorder = Spicy::BitOrder::MSB0;
+
+    #this type is masked so the next 4 bytes are the mask key
+    maskkey: bytes &length=4;
+
+    #the rest is data
+    data: bytes &length=self.first2B.pay1;
+};
+
+type WS_Pay1_Unmasked = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+    first2B: bitfield(16) {
+		fin: 0;
+		rsv1: 1;
+		rsv2: 2;
+		rsv3: 3;
+		op: 4..7;
+		mask: 8;
+		pay1: 9..15;
+    } &bitorder = Spicy::BitOrder::MSB0;
+
+    # This is unmasked so no maskkey, the rest is data
+    data: bytes &length=self.first2B.pay1;
+};
+
+type WS_Pay2_Masked = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+    first2B: bitfield(16) {
+		fin: 0;
+		rsv1: 1;
+		rsv2: 2;
+		rsv3: 3;
+		op: 4..7;
+		mask: 8;
+		pay1: 9..15;
+    } &bitorder = Spicy::BitOrder::MSB0;
+
+    #this has an extended payload so the next uint<16> is the payload
+    pay2: uint<16>;
+
+    #this type is masked so the next 4 bytes are the mask key
+    maskkey: bytes &length=4;
+
+    #the rest is data
+    data: bytes &length=self.pay2;
+};
+
+type WS_Pay2_Unmasked = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+    first2B: bitfield(16) {
+		fin: 0;
+		rsv1: 1;
+		rsv2: 2;
+		rsv3: 3;
+		op: 4..7;
+		mask: 8;
+		pay1: 9..15;
+    } &bitorder = Spicy::BitOrder::MSB0;
+
+    #this has an extended payload so the next uint<16> is the payload
+    pay2: uint<16>;
+
+    # This is unmasked so no maskkey, the rest is data
+    data: bytes &length=self.pay2;
+};
+
+type WS_Pay3_Masked = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+    first2B: bitfield(16) {
+		fin: 0;
+		rsv1: 1;
+		rsv2: 2;
+		rsv3: 3;
+		op: 4..7;
+		mask: 8;
+		pay1: 9..15;
+    } &bitorder = Spicy::BitOrder::MSB0;
+
+    #this has an continued extended payload so the next uint<64> is the payload
+    pay3: uint<64>;
+
+    #this type is masked so the next 4 bytes are the mask key
+    maskkey: bytes &length=4;
+
+    #the rest is data
+    data: bytes &length=self.pay3;
+};
+
+type WS_Pay3_Unmasked = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+    first2B: bitfield(16) {
+		fin: 0;
+		rsv1: 1;
+		rsv2: 2;
+		rsv3: 3;
+		op: 4..7;
+		mask: 8;
+		pay1: 9..15;
+    } &bitorder = Spicy::BitOrder::MSB0;
+
+    #this has an continued extended payload so the next uint<64> is the payload
+    pay3: uint<64>;
+
+    # This is unmasked so no maskkey, the rest is data
+    data: bytes &length=self.pay3;	
+};
