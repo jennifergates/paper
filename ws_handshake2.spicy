@@ -51,6 +51,7 @@ export type WS_Handshake_Success = unit {
         }
 };
 
+## didn't really get this to work 
 export type WS_Message = unit {
 	switch { 
 		ws_pay1_masked: WS_Pay1_Masked;
