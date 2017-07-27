@@ -14,7 +14,6 @@ bytes terminate(b: bytes) {
 }
 
 export type WS_Handshake = unit {
-	var sub: sink;
 
         get    : /^(GET|get|Get) /;
 	dvalue : DataValue;
@@ -27,6 +26,7 @@ export type WS_Handshake = unit {
 		self.sub.connect(new Sub());
 	}
 
+	var sub: sink;
 	on ws_data {
 		print "\n*****ws_handshake.spicy WS_Handshake ws_data populated";
 		print self.ws_data;
@@ -35,16 +35,17 @@ export type WS_Handshake = unit {
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
 		print self;
+		self.sub.close();
 	}
 };
 
 export type Sub = unit {
-	ws_messages : list<WS_Message>;
-		    : DataEnd
+	ws_msgs : list<WS_Message>;
+		    : DataEnd;
 		
-	on ws_messages {
+	on ws_msgs {
 		print "\n*****ws_handshake.spicy Sub on ws_messages:";
-		print self.ws_messages;
+		print self.ws_msgs;
 	}
 };
 
@@ -54,15 +55,13 @@ export type WS_Handshake_Success = unit {
         dvalue      : DataValue;
         svrheaders     : list<Header> ;
         end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-	wss_data    : bytes &eod &convert=terminate($$);
-#	wss_messages : list<WS_Message> &count=2;
-#       wss_message1  : WS_Message ;
-#	wss_message2 : WS_Message;
-#	wss_message3 : WS_Message;
+        wss_data : bytes &eod &convert=terminate($$) &transient -> self.sub;
 
-#        on %init {
-#                print "Success running";
-#        }
+        on %init {
+                self.sub.connect(new Sub());
+        }
+
+        var sub: sink;
 
 #	on wss_message {
 #		print "\n*****ws_handshake.spicy WS_Handshake_Success wss_message has data:";
