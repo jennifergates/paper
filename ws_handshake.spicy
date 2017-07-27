@@ -21,28 +21,28 @@ export type WS_Handshake = unit {
 	headers : list<Header> ;
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
 
-	ws_data : bytes &eod &convert=terminate($$) &transient -> self.sub;
+	ws_data : bytes &eod &convert=terminate($$) &transient  -> self.hs_sub;
 
 	on %init {
-		self.sub.connect(new Sub());
+		self.hs_sub.connect(new HS_Sub());
 	}
 
-	var sub: sink;
+	var hs_sub: sink;
 
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
 		print self;
-		self.sub.close();
+		self.hs_sub.close();
 	}
 };
 
-# sub unit to put websocket protocol packets into a list
-export type Sub = unit {
+# sub unit to put originator websocket protocol packets into a list
+export type HS_Sub = unit {
 	ws_msgs : list<WS_Message>;
 		    : DataEnd;
 		
 	on %done {
-		print "\n*****ws_handshake.spicy Sub on done:";
+		print "\n*****ws_handshake.spicy HS_Sub on done:";
 		print self.ws_msgs;
 	}
 };
@@ -54,17 +54,28 @@ export type WS_Handshake_Success = unit {
         dvalue      : DataValue;
         svrheaders     : list<Header> ;
         end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-        wss_data : bytes &eod &convert=terminate($$) &transient -> self.sub;
+        wss_data : bytes &eod &convert=terminate($$) &transient -> self.hss_sub;
 
         on %init {
-                self.sub.connect(new Sub());
+                self.hss_sub.connect(new HSS_Sub());
         }
 
-        var sub: sink;
+        var hss_sub: sink;
 
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
                 print self;
+        }
+};
+
+# sub unit to put responder websocket protocol packets into a list
+export type HSS_Sub = unit {
+        wss_msgs : list<WS_Message>;
+                    : DataEnd;
+
+        on %done {
+                print "\n*****ws_handshake.spicy HSS_Sub on done:";
+                print self.wss_msgs;
         }
 };
 
