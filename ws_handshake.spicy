@@ -13,6 +13,7 @@ bytes terminate(b: bytes) {
 	return b + DataEnd;
 }
 
+#primary unit to store client originator Websocket handshake traffic and follow on websocket protocol packets
 export type WS_Handshake = unit {
 
         get    : /^(GET|get|Get) /;
@@ -27,10 +28,6 @@ export type WS_Handshake = unit {
 	}
 
 	var sub: sink;
-	on ws_data {
-		print "\n*****ws_handshake.spicy WS_Handshake ws_data populated";
-		print self.ws_data;
-	}
 
         on %done { 
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
@@ -39,16 +36,18 @@ export type WS_Handshake = unit {
 	}
 };
 
+# sub unit to put websocket protocol packets into a list
 export type Sub = unit {
 	ws_msgs : list<WS_Message>;
 		    : DataEnd;
 		
-	on ws_msgs {
-		print "\n*****ws_handshake.spicy Sub on ws_messages:";
+	on %done {
+		print "\n*****ws_handshake.spicy Sub on done:";
 		print self.ws_msgs;
 	}
 };
 
+#primary unit to store server/responder Websocket handshake traffic and follow on websocket protocol packets 
 export type WS_Handshake_Success = unit {
 
         success     : /^(HTTP|http)/;
@@ -63,30 +62,21 @@ export type WS_Handshake_Success = unit {
 
         var sub: sink;
 
-#	on wss_message {
-#		print "\n*****ws_handshake.spicy WS_Handshake_Success wss_message has data:";
-#		print self.wss_message;
-#	}
-
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
                 print self;
         }
 };
 
+# unit to parse http headers in handshake packets
 export type Header = unit {
-
 		: LineEnd;
 	name	: BeforeColon;
 		: Colon;
 	value	: DataValue;
-
-#	on %done {
-#		print "\n*****ws_handshake.spicy Header on done";
-#		print self;
-#	}
 };
 
+# sub unit to parse WS protocol fields from websockets packet list
 export type WS_Message = unit {
 	# start with first 2 bytes as a bitfield to get access to bit level flags
         first2B: bitfield(16) {
@@ -124,11 +114,11 @@ export type WS_Message = unit {
 		print "\n*****ws_handshake.spicy WS_Message ERROR";
 	}
 
-	on %done {
-		# feedback while coding
-		print "\n*****ws_handshake.spicy WS_Message print self on done:";
-		print self;
-	}
+#	on %done {
+#		# feedback while coding
+#		print "\n*****ws_handshake.spicy WS_Message print self on done:";
+#		print self;
+#	}
 
 };
 
