@@ -68,12 +68,34 @@ type BroHdr: record {
 # define for Bro the vector that will be passed in from spicy parser as the headers list
 type BroHdrs: vector of BroHdr;
 
+# define for Bro the record that will be passed in from spicy parser in the ws messages list
+#<first2B=(fin=1, rsv1=0, rsv2=0, rsv3=0, op=1, mask=1, pay1=12)
+#type BroMsg: record {
+#	first2B: string;
+#	fin1: string;
+#	rsv1: string;
+#	rsv2: string;
+#	rsv3: string;
+#	op: string;
+#	mask: string;
+#	pay1: count;
+#	pay2: count &optional;
+#	pay3: count &optional;
+#	maskkey: string &optional;
+#	data: string;
+#};
+
+# define for Bro the vector that will be passed in from spicy parser as the ws messages list
+#type BroMsgs: vector of BroMsg;
+
+#event orig_websockets(c: connection, msgs: BroMsgs) {
+#	print BroMsgs;
+#}
 
 #### Not needed?
-event ws_handshake(c: connection, get: string) {
+event ws_handshake(c: connection, hdrlist: BroHdrs) {
 	print " ";
 	print "*****ws_handshake.bro ws_handshake event:";
-        print get;
 }
 
 #### Not needed?
@@ -109,7 +131,7 @@ event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
 	for (i in hlist)
 	{
 
-		print hlist[i];
+		#print hlist[i];
 		#start with a blank handshake until logic determines if this header is a websocket handshake header
 		handshake=" ";
 
