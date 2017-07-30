@@ -5,10 +5,11 @@ protocol analyzer WS_HANDSHAKE over TCP:
     parse responder with WS_HANDSHAKE::WS_Handshake_Success,
     port 9696/tcp,
     port 80/tcp,
-    port 12345/tcp;
+    port 12345/tcp,
+    port 44394/tcp;
 
 on WS_HANDSHAKE::WS_Handshake->
-        event ws_handshake($conn, self.get);
+        event ws_handshake($conn, self.headers);
 
 on WS_HANDSHAKE::Header->
 	event header($conn, self.name, self.value);
@@ -20,7 +21,13 @@ on WS_HANDSHAKE::WS_Handshake_Success->
 	event allheaders($conn, self.svrheaders, self.dvalue);
 
 on WS_HANDSHAKE::WS_Message::first2B ->
-        event ws_message($conn, self.first2B.op, self.first2B.mask);
+        event ws_messages($conn, self.first2B.op, self.first2B.mask);
 
 on WS_HANDSHAKE::WS_Message::maskkey ->
         event ws_masked($conn, self.maskkey, self.data);
+
+#on WS_HANDSHAKE::HS_Sub->
+#	event orig_websockets($conn, self.ws_msgs);
+
+#on WS_HANDSHAKE::HSS_Sub->
+#	event resp_websockets($conn, self.wss_msgs);
