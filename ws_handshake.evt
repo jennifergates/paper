@@ -26,8 +26,8 @@ on WS_HANDSHAKE::WS_Message::first2B ->
 on WS_HANDSHAKE::WS_Message if (( self?.maskkey) && (self?.data)) ->
         event ws_maskedmessage($conn, self.first2B, self.maskkey, self.data);
 
-#on WS_HANDSHAKE::WS_Message if ( !self?.maskkey ) ->
-#	event ws_unmaskedmessage($conn, self.first2B);
+on WS_HANDSHAKE::WS_Message if (( !self?.maskkey ) && (self?.data))->
+	event ws_unmaskedmessage($conn, self.first2B, self.data);
 
 #on WS_HANDSHAKE::WS_Message if (( !self?.maskkey) && (!self?.data)) ->
 #	event ws_nodatamessage($conn, self.first2B);
