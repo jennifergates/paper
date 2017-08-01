@@ -75,16 +75,16 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 	Log::write(WS_MESSAGE::LOG, rec);	
 }
 
-#event ws_unmaskedmessage(c: connection, first2B: Brofirst2B) {
-#        local mkey = " - ";
-#        local wsdata = " - ";
+event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
+        local mkey = " - ";
+        local wsdata = data
+;
+        #Log format
+        local urec: WS_MESSAGE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_data=wsdata];
+        c$ws_message = urec;
 
-#        #Log format
-#        local urec: WS_MESSAGE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_data=wsdata];
-#        c$ws_message = urec;
-
-#        Log::write(WS_MESSAGE::LOG, urec);
-#}
+        Log::write(WS_MESSAGE::LOG, urec);
+}
 
 #event ws_nodatamessage(c: connection, first2B: Brofirst2B) {
 #        local mkey = " - ";
