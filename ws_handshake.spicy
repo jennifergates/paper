@@ -40,17 +40,17 @@ export type WS_Handshake = unit {
 export type HS_Sub = unit(handshake: WS_Handshake) {
 	ws_msgs : list<WS_Message> {
 		handshake.messages = self.ws_msgs;
-		print "HANDSHAKE";
-		print handshake.messages;
+#		print "HANDSHAKE";
+#		print handshake.messages;
 	}	
 		: DataEnd;
 	
-	on %done {
-		print "\n*****ws_handshake.spicy HS_Sub on done:";
-		print "HANDSHAKE";
-		#print handshake;
-		print self.ws_msgs;
-	}
+#	on %done {
+#		print "\n*****ws_handshake.spicy HS_Sub on done:";
+#		print "HANDSHAKE";
+#		print handshake;
+#		print self.ws_msgs;
+#	}
 };
 
 #primary unit to store server/responder Websocket handshake traffic and follow on websocket protocol packets 
@@ -67,7 +67,7 @@ export type WS_Handshake_Success = unit {
         }
 
         var hss_sub: sink;
-	var messages: list<WS_Message>;
+	var smessages: list<WS_Message>;
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
                 print self;
@@ -77,14 +77,14 @@ export type WS_Handshake_Success = unit {
 # sub unit to put responder websocket protocol packets into a list
 export type HSS_Sub = unit (shandshake: WS_Handshake_Success) {
         wss_msgs : list<WS_Message>{
-		shandshake.messages = self.wss_msgs;
+		shandshake.smessages = self.wss_msgs;
 	}
                     : DataEnd;
 
-        on %done {
-                print "\n*****ws_handshake.spicy HSS_Sub on done:";
-                print self.wss_msgs;
-        }
+#        on %done {
+#                print "\n*****ws_handshake.spicy HSS_Sub on done:";
+#                print self.wss_msgs;
+#        }
 };
 
 # unit to parse http headers in handshake packets
@@ -128,6 +128,10 @@ export type WS_Message = unit {
                 127 -> data: bytes &length=self.extpayc.pay3;
                 * -> data: bytes &length=self.first2B.pay1;
         };
+
+	on maskkey {
+		print self.maskkey;
+	}
 
 	on %error {
 		print "\n*****ws_handshake.spicy WS_Message ERROR";
