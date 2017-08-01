@@ -1,0 +1,175 @@
+module WS_HANDSHAKE;
+
+import Spicy;
+
+const BeforeColon = /(.|\r|\n| ).[^:]+/;
+const Colon = /: /;
+const DataValue = /.[^\x0d\x0a]+/;
+const LineEnd = /\x0d\x0a/;
+const DataEnd = b"\x53\x50\x49\x43\x59\x6a\x6c\x67";
+
+global gtotaldata: bytes =b"";
+
+#function to add a delimiting byte at the end of the ws packets to allow list to properly terminate
+bytes terminate(b: bytes) {
+	return b + DataEnd;
+}
+
+#primary unit to store client originator Websocket handshake traffic and follow on websocket protocol packets
+export type WS_Handshake = unit {
+
+        get    : /^(GET|get|Get) /;
+	dvalue : DataValue;
+	headers : list<Header> ;
+	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+
+	ws_data : bytes &eod &convert=terminate($$) &transient  -> self.hs_sub;
+
+	on %init {
+		self.hs_sub.connect(new HS_Sub(self));
+	}
+
+	var hs_sub: sink;
+	var messages: list<WS_Message>;
+	var totaldata: bytes;
+
+
+        on %done { 
+		self.totaldata = gtotaldata;
+		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
+		print self;
+#		self.hs_sub.close();
+	}
+};
+
+# sub unit to put originator websocket protocol packets into a list
+export type HS_Sub = unit(handshake: WS_Handshake) {
+	ws_msgs : list<WS_Message> {
+		handshake.messages = self.ws_msgs;
+	}	
+		: DataEnd;
+};
+
+#primary unit to store server/responder Websocket handshake traffic and follow on websocket protocol packets 
+export type WS_Handshake_Success = unit {
+
+        success     : /^(HTTP|http)/;
+        dvalue      : DataValue;
+        svrheaders     : list<Header> ;
+        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+        wss_data : bytes &eod &convert=terminate($$) &transient -> self.hss_sub;
+
+        on %init {
+                self.hss_sub.connect(new HSS_Sub(self));
+        }
+
+        var hss_sub: sink;
+	var smessages: list<WS_Message>;
+	var totaldata: bytes;
+        on %done {
+                print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
+		self.totaldata = gtotaldata;
+		print self;
+        }
+};
+
+# sub unit to put responder websocket protocol packets into a list
+export type HSS_Sub = unit (shandshake: WS_Handshake_Success) {
+        wss_msgs : list<WS_Message>{
+		shandshake.smessages = self.wss_msgs;
+	}
+                    : DataEnd;
+};
+
+# unit to parse http headers in handshake packets
+export type Header = unit {
+		: LineEnd;
+	name	: BeforeColon;
+		: Colon;
+	value	: DataValue;
+};
+
+# sub unit to parse WS protocol fields from websockets packet list
+export type WS_Message = unit {
+	# start with first 2 bytes as a bitfield to get access to bit level flags
+        first2B: bitfield(16) {
+                fin: 0;
+                rsv1: 1;
+                rsv2: 2;
+                rsv3: 3;
+                op: 4..7;
+                mask: 8;
+                pay1: 9..15;
+        } &bitorder = Spicy::BitOrder::MSB0;
+	
+	# determine payload length and start point for next field
+	switch ( self.first2B.pay1 ) {
+		126 -> extpay: ExtPay;
+		127 -> extpayc: ExtPayC;
+		* -> : void;
+	};
+	
+	# parse out masking key if payload is masked (from client)
+	switch ( self.first2B.mask ) {
+		1 -> maskkey: bytes &length=4;
+		0 -> : void;
+	};
+	
+	# grab the payload data. Leave unmasking to bro script
+        switch ( self.first2B.pay1 ) {
+                126 -> data: bytes &length=self.extpay.pay2;
+                127 -> data: bytes &length=self.extpayc.pay3;
+                * -> data: bytes &length=self.first2B.pay1;
+        };
+
+#	var xor : sink;
+
+#	on %init {
+#		self.xor.connect(new XOR(self.maskkey));
+#	}
+
+	on data {
+		if (self?.maskkey) {
+			local encoded = self.data;
+			local encodedlen = |encoded| ;
+			local cur: iter<bytes>;
+			local last: iter<bytes>;
+			local m = self.maskkey.begin();
+			local xor: uint<8>;
+			local intm: uint<8>;
+			local intcur: uint<8>;
+			
+			print "***********XOR ************";
+			print *(m + 3);
+			cur = encoded.begin();
+			last = encoded.end();
+			print *cur;
+			
+			intm = *m;
+			intcur = *cur;
+			xor = intm ^ intcur;
+			print xor;			
+		}
+
+		gtotaldata += self.data;
+	}
+
+	on %error {
+		print "\n*****ws_handshake.spicy WS_Message ERROR";
+	}
+
+};
+
+
+# define this new type which parses out the extended payload length field 
+export type ExtPay = unit {
+	pay2: uint<16>;
+#	on %done {
+#		print "pay2 assigned";
+#	}
+};
+
+# define this new type which parses out the extended continued payload length field
+export type ExtPayC = unit {
+	pay3: uint<64>;
+};
