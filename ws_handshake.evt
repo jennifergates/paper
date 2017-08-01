@@ -29,8 +29,8 @@ on WS_HANDSHAKE::WS_Message if (( self?.maskkey) && (self?.data)) ->
 on WS_HANDSHAKE::WS_Message if (( !self?.maskkey ) && (self?.data))->
 	event ws_unmaskedmessage($conn, self.first2B, self.data);
 
-#on WS_HANDSHAKE::WS_Message if (( !self?.maskkey) && (!self?.data)) ->
-#	event ws_nodatamessage($conn, self.first2B);
+on WS_HANDSHAKE::WS_Message if (( !self?.maskkey) && (!self?.data)) ->
+	event ws_nodatamessage($conn, self.first2B);
 
 # might need to break down further and send individual messages instead of whole list
 # see hilti/bro/tests/spicy/tuple-optional.bro example for more info
