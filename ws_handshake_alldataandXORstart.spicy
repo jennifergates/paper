@@ -38,7 +38,7 @@ export type WS_Handshake = unit {
 		self.totaldata = gtotaldata;
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
 		print self;
-#		self.hs_sub.close();
+	        gtotaldata = b" ";
 	}
 };
 
@@ -69,6 +69,7 @@ export type WS_Handshake_Success = unit {
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
 		self.totaldata = gtotaldata;
+		gtotaldata = b" ";
 		print self;
         }
 };
@@ -122,12 +123,6 @@ export type WS_Message = unit {
                 * -> data: bytes &length=self.first2B.pay1;
         };
 
-#	var xor : sink;
-
-#	on %init {
-#		self.xor.connect(new XOR(self.maskkey));
-#	}
-
 	on data {
 		if (self?.maskkey) {
 			local encoded = self.data;
@@ -164,9 +159,6 @@ export type WS_Message = unit {
 # define this new type which parses out the extended payload length field 
 export type ExtPay = unit {
 	pay2: uint<16>;
-#	on %done {
-#		print "pay2 assigned";
-#	}
 };
 
 # define this new type which parses out the extended continued payload length field
