@@ -4,6 +4,7 @@
 #which basically includes libraries
 @load base/protocols/http
 @load base/protocols/conn
+@load bintools
 
 #create namespace 
 module WS_MESSAGE;
@@ -59,14 +60,21 @@ type Brofirst2B: record {
 event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data: string) {
 	local mkey = " - ";
 	local wsdata = " - ";
-
+	local xordata = "";
 	if ( |maskkey| > 1 ) {
 		mkey = maskkey;
 	};
 
-	if (|data| > 0 ) {
-		wsdata = data;
-	};
+	local ct: count = 0;
+	
+	#XOR lookup function provided by https://github.com/justbeck/bro-xorpe/blob/master/bintools.bro
+	# mask key is 4 bytes so need to mod to iterate through bytes
+	for ( byte in data) {
+		xordata += BinTools::xor(byte, mkey[(ct % 4)]);
+		ct = ct + 1;
+	}
+		
+	wsdata = xordata;
 
 	#Log format
 	local rec: WS_MESSAGE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_data=wsdata];
@@ -77,8 +85,7 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 
 event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
         local mkey = " - ";
-        local wsdata = data
-;
+        local wsdata = data;
         #Log format
         local urec: WS_MESSAGE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_data=wsdata];
         c$ws_message = urec;
