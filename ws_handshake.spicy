@@ -2,11 +2,13 @@ module WS_HANDSHAKE;
 
 import Spicy;
 
-const BeforeColon = /(.|\r|\n| ).[^:]+/;
+const BeforeColon = /[^:]+/;
 const Colon = /: /;
-const DataValue = /.[^\x0d\x0a]+/;
+const DataValue = /[^\x0d\x0a]+/;
 const LineEnd = /\x0d\x0a/;
 const DataEnd = b"\x53\x50\x49\x43\x59\x6a\x6c\x67";
+
+global gtotaldata: bytes =b"";
 
 #function to add a delimiting byte at the end of the ws packets to allow list to properly terminate
 bytes terminate(b: bytes) {
@@ -18,7 +20,7 @@ export type WS_Handshake = unit {
 
         get    : /^(GET|get|Get) /;
 	dvalue : DataValue;
-	headers : list<Header> ;
+	headers : list<Header>;
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
 
 	ws_data : bytes &eod &convert=terminate($$) &transient  -> self.hs_sub;
@@ -29,9 +31,13 @@ export type WS_Handshake = unit {
 
 	var hs_sub: sink;
 	var messages: list<WS_Message>;
+	var totaldata: bytes;
+
         on %done { 
+		self.totaldata = gtotaldata;
 		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
 		print self;
+	        gtotaldata = b" ";
 		self.hs_sub.close();
 	}
 };
@@ -40,25 +46,16 @@ export type WS_Handshake = unit {
 export type HS_Sub = unit(handshake: WS_Handshake) {
 	ws_msgs : list<WS_Message> {
 		handshake.messages = self.ws_msgs;
-#		print "HANDSHAKE";
-#		print handshake.messages;
 	}	
 		: DataEnd;
-	
-#	on %done {
-#		print "\n*****ws_handshake.spicy HS_Sub on done:";
-#		print "HANDSHAKE";
-#		print handshake;
-#		print self.ws_msgs;
-#	}
 };
 
 #primary unit to store server/responder Websocket handshake traffic and follow on websocket protocol packets 
 export type WS_Handshake_Success = unit {
 
-        success     : /^(HTTP|http)/;
+        success     : /^(HTTP|http)\/1.1 101 Switching Proto/;
         dvalue      : DataValue;
-        svrheaders     : list<Header> ;
+        svrheaders     : list<Header>;
         end_of_hdrs : /\x0d\x0a\x0d\x0a/;
         wss_data : bytes &eod &convert=terminate($$) &transient -> self.hss_sub;
 
@@ -68,9 +65,20 @@ export type WS_Handshake_Success = unit {
 
         var hss_sub: sink;
 	var smessages: list<WS_Message>;
+	var totaldata: bytes;
+
+	on success {
+		print "SUCCESS";
+		print self.success;
+	}
+	on dvalue {
+		print self.dvalue;
+	}
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
-                print self;
+		self.totaldata = gtotaldata;
+		gtotaldata = b" ";
+		print self;
         }
 };
 
@@ -80,11 +88,6 @@ export type HSS_Sub = unit (shandshake: WS_Handshake_Success) {
 		shandshake.smessages = self.wss_msgs;
 	}
                     : DataEnd;
-
-#        on %done {
-#                print "\n*****ws_handshake.spicy HSS_Sub on done:";
-#                print self.wss_msgs;
-#        }
 };
 
 # unit to parse http headers in handshake packets
@@ -93,6 +96,7 @@ export type Header = unit {
 	name	: BeforeColon;
 		: Colon;
 	value	: DataValue;
+
 };
 
 # sub unit to parse WS protocol fields from websockets packet list
@@ -122,35 +126,26 @@ export type WS_Message = unit {
 	};
 	
 	# grab the payload data. Leave unmasking to bro script
-	#data: bytes &eod;
         switch ( self.first2B.pay1 ) {
-                126 -> data: bytes &length=self.extpay.pay2;
-                127 -> data: bytes &length=self.extpayc.pay3;
+                126 -> data: bytes &length=self.extpay.pay2 ;
+                127 -> data: bytes &length=self.extpayc.pay3 ;
                 * -> data: bytes &length=self.first2B.pay1;
         };
 
-	on maskkey {
-		print self.maskkey;
+	on data {
+		gtotaldata += self.data;
 	}
 
 	on %error {
 		print "\n*****ws_handshake.spicy WS_Message ERROR";
 	}
 
-#	on %done {
-#		# feedback while coding
-#		print "\n*****ws_handshake.spicy WS_Message print self on done:";
-#		print self;
-#	}
-
 };
+
 
 # define this new type which parses out the extended payload length field 
 export type ExtPay = unit {
 	pay2: uint<16>;
-	on %done {
-		print "pay2 assigned";
-	}
 };
 
 # define this new type which parses out the extended continued payload length field
