@@ -1,6 +1,7 @@
 module WS_HANDSHAKE;
 
 import Spicy;
+import "HILTI-C" void Hilti::terminate();
 
 const BeforeColon = /[^:]+/;
 const Colon = /: /;
@@ -32,6 +33,16 @@ export type WS_Handshake = unit {
 	var hs_sub: sink;
 	var messages: list<WS_Message>;
 	var totaldata: bytes;
+
+	# Need to stop parsing regular HTTP GET requests if no Sec-WebSocket-Version header
+	on headers {
+		local joinedheaders: bytes;
+		joinedheaders = b".".join(self.headers);
+		if (|joinedheaders.match(/.*Sec-WebSocket-Version.*/)| == 0){
+#			print "NOT WEBSOCKET REQUEST";
+			Hilti::terminate();
+		}
+	}
 
         on %done { 
 		self.totaldata = gtotaldata;
@@ -67,13 +78,6 @@ export type WS_Handshake_Success = unit {
 	var smessages: list<WS_Message>;
 	var totaldata: bytes;
 
-	on success {
-		print "SUCCESS";
-		print self.success;
-	}
-	on dvalue {
-		print self.dvalue;
-	}
         on %done {
                 print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
 		self.totaldata = gtotaldata;
@@ -96,7 +100,6 @@ export type Header = unit {
 	name	: BeforeColon;
 		: Colon;
 	value	: DataValue;
-
 };
 
 # sub unit to parse WS protocol fields from websockets packet list
@@ -151,4 +154,8 @@ export type ExtPay = unit {
 # define this new type which parses out the extended continued payload length field
 export type ExtPayC = unit {
 	pay3: uint<64>;
+	on pay3 {
+		print "pay3";
+		print self.pay3;
+	}
 };
