@@ -38,7 +38,8 @@ export type WS_Handshake = unit {
 	on headers {
 		local joinedheaders: bytes;
 		joinedheaders = b".".join(self.headers);
-		if (|joinedheaders.match(/.*Sec-WebSocket-Version.*/)| == 0){
+		joinedheaders = joinedheaders.lower();
+		if (|joinedheaders.match(/.*sec-websocket-version.*/)| == 0){
 #			print "NOT WEBSOCKET REQUEST";
 			Hilti::terminate();
 		}
@@ -78,7 +79,8 @@ export type WS_Handshake_Success = unit {
 	on svrheaders {
 		local sjoinedheaders: bytes;
 		sjoinedheaders = b".".join(self.svrheaders);
-		if (|sjoinedheaders.match(/.*Sec-WebSocket-Accept.*/)| == 0){
+		sjoinedheaders = sjoinedheaders.lower();
+		if (|sjoinedheaders.match(/.*sec-websocket-accept.*/)| == 0){
 #			print "NOT WEBSOCKET RESPONSE";
 			Hilti::terminate();
 		}
