@@ -6,7 +6,10 @@
 @load base/protocols/conn
 @load bintools
 
-const CustomURI = "/command-execution";
+const CustomURI1 = "/command-execution";
+const ExpResp1 = /^3 packets transmitted,.+/;
+const CustomURI2 = "/reflected-xss";
+const ExpResp2 = /^Hello [a-zA-Z\' ]+:\) How are you\?/;
 
 #create namespace 
 module WS_MESSAGENOTNORMAL;
@@ -31,6 +34,8 @@ export {
 		ws_opcode: count &log;
 		## Maskkey used by client to XOR mask data
 		ws_maskkey: string &log;
+		## URI in websocket packet
+		ws_uri: string &log;
 		## Data in websocket packet
 		ws_data: string &log;
 	};
@@ -44,6 +49,7 @@ event bro_init()  &priority=5
 
 #add a new field to the connection record so that data is accessible in variety of event handlers
 redef record connection += {
+
 	ws_messagenotnormal: Info &optional;
 };
 
@@ -59,22 +65,35 @@ type Brofirst2B: record {
 	pay1: count;
 };
 
-#event to detect and log when the response to the custom url is not the expected ping response. 
-#if normal, the ping is successful or not and the second to last line returned starts with "3 packets trasmitted"
+#event to detect and log when the response to the custom url is not the expected response. 
 event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
-	if (c$http$uri == CustomURI) {
+	#if normal, the ping is successful or not and the second to last line returned starts with "3 packets trasmitted"
+	if (c$http$uri == CustomURI1) {
 	        local mkey = " - ";
 		local wsdata = data;
 	        #Log format
-		local urec: WS_MESSAGENOTNORMAL::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_data=wsdata];
-		c$ws_messagenotnormal = urec;
+		local urec1: WS_MESSAGENOTNORMAL::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_uri=c$http$uri, $ws_data=wsdata];
+		c$ws_messagenotnormal = urec1;
 		if (first2B$op == 1) {
 			local thearray = split_string(data, /\x0a/);
 			local pkts = thearray[(|thearray|-3)];
-			if (pkts != /^3 packets transmitted,.+/) {
-				print c;
-				Log::write(WS_MESSAGENOTNORMAL::LOG, urec);   
+			if (pkts != ExpResp1) {
+				#print c;
+				Log::write(WS_MESSAGENOTNORMAL::LOG, urec1);   
 			};
 		};
 	};
+
+	#if normal, the response only includes letters and possibly '
+        if (c$http$uri == CustomURI2) {
+		#Log format
+                local urec2: WS_MESSAGENOTNORMAL::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_uri=c$http$uri, $ws_data=wsdata];
+                c$ws_messagenotnormal = urec2;
+                if (first2B$op == 1) {
+                        if (data != ExpResp2 ) {
+                                #print c;
+                                Log::write(WS_MESSAGENOTNORMAL::LOG, urec2);
+                        };
+                };
+        };
 }
