@@ -74,6 +74,16 @@ export type WS_Handshake_Success = unit {
                 self.hss_sub.connect(new HSS_Sub(self));
         }
 
+	# Need to stop parsing regular HTTP 101 responses if no Sec-WebSocket-Accept header
+	on svrheaders {
+		local sjoinedheaders: bytes;
+		sjoinedheaders = b".".join(self.svrheaders);
+		if (|sjoinedheaders.match(/.*Sec-WebSocket-Accept.*/)| == 0){
+#			print "NOT WEBSOCKET RESPONSE";
+			Hilti::terminate();
+		}
+	}
+
         var hss_sub: sink;
 	var smessages: list<WS_Message>;
 	var totaldata: bytes;
