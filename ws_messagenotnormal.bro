@@ -10,6 +10,9 @@ const CustomURI1 = "/command-execution";
 const ExpResp1 = /^3 packets transmitted,.+/;
 const CustomURI2 = "/reflected-xss";
 const ExpResp2 = /^Hello [a-zA-Z\' ]+:\) How are you\?/;
+const CustomURI3 = "/authenticate-user";
+const ExpResp3a = /^Welcome to your account\. How are you [a-zA-Z\' ]+\?/;
+const ExpResp3b = /<pre>Invalid username\/password<\/pre>/;
 
 #create namespace 
 module WS_MESSAGENOTNORMAL;
@@ -100,6 +103,20 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
                                 #print c;
                                 Log::write(WS_MESSAGENOTNORMAL::LOG, urec2);
 				NOTICE([$note=WS_MESSAGENOTNORMAL::Unexpected_Response, $msg = fmt("Unexpected Response to %s", CustomURI2), $sub = fmt("reponse = %s", data), $conn=c]);
+                        };
+                };
+        };
+
+        #if normal, the response is only an error message or welcome message '
+        if (c$http$uri == CustomURI3) {
+                #Log format
+                local urec3: WS_MESSAGENOTNORMAL::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_uri=c$http$uri, $ws_data=wsdata];
+                c$ws_messagenotnormal = urec3;
+                if (first2B$op == 1) {
+                        if ((data != ExpResp3a ) && (data != ExpResp3b)) {
+                                #print c;
+                                Log::write(WS_MESSAGENOTNORMAL::LOG, urec3);
+                                NOTICE([$note=WS_MESSAGENOTNORMAL::Unexpected_Response, $msg = fmt("Unexpected Response to %s", CustomURI3), $sub = fmt("reponse = %s", data), $conn=c]);
                         };
                 };
         };
