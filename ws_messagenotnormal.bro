@@ -38,7 +38,12 @@ export {
 		ws_uri: string &log;
 		## Data in websocket packet
 		ws_data: string &log;
+
 	};
+
+	##Append a new notice value to the Notice::Type enumerable.
+	redef enum Notice::Type += { Unexpected_Response };
+
 }
 
 event bro_init()  &priority=5
@@ -79,7 +84,8 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
 			local pkts = thearray[(|thearray|-3)];
 			if (pkts != ExpResp1) {
 				#print c;
-				Log::write(WS_MESSAGENOTNORMAL::LOG, urec1);   
+				Log::write(WS_MESSAGENOTNORMAL::LOG, urec1); 
+				NOTICE([$note=WS_MESSAGENOTNORMAL::Unexpected_Response, $msg = fmt("Unexpected Response to %s", CustomURI1), $sub = fmt("reponse = %s", pkts), $conn=c]);  
 			};
 		};
 	};
@@ -93,6 +99,7 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
                         if (data != ExpResp2 ) {
                                 #print c;
                                 Log::write(WS_MESSAGENOTNORMAL::LOG, urec2);
+				NOTICE([$note=WS_MESSAGENOTNORMAL::Unexpected_Response, $msg = fmt("Unexpected Response to %s", CustomURI2), $sub = fmt("reponse = %s", data), $conn=c]);
                         };
                 };
         };
