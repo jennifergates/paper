@@ -13,6 +13,7 @@ const ExpResp2 = /^Hello [a-zA-Z\' ]+:\) How are you\?/;
 const CustomURI3 = "/authenticate-user";
 const ExpResp3a = /^Welcome to your account\. How are you [a-zA-Z\' ]+\?/;
 const ExpResp3b = /<pre>Invalid username\/password<\/pre>/;
+const SQLinjectionRegEx = /.*(table_schema|floor|concat|having|union|select|delete|drop|declare|create|insert|column_name|table_name).*/;
 
 #create namespace 
 module WS_MESSAGENOTNORMAL;
@@ -46,6 +47,7 @@ export {
 
 	##Append a new notice value to the Notice::Type enumerable.
 	redef enum Notice::Type += { Unexpected_Response };
+	redef enum Notice::Type += { SQL_Injection_words };
 
 }
 
@@ -120,4 +122,68 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
                         };
                 };
         };
+}
+
+event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data: string) {
+	local mkey = " - ";
+	local wsdata = " - ";
+	local xordata = "";
+	if ( |maskkey| > 1 ) {
+		mkey = maskkey;
+	};
+
+	local ct: count = 0;
+	
+	#XOR lookup function provided by https://github.com/justbeck/bro-xorpe/blob/master/bintools.bro
+	# mask key is 4 bytes so need to mod to iterate through bytes
+	for ( byte in data) {
+		xordata += BinTools::xor(byte, mkey[(ct % 4)]);
+		ct = ct + 1;
+	}
+		
+	wsdata = xordata;
+
+	#detect SQL injection words in the input and develop a score
+	local score = 0;
+
+	if (c$http$uri == CustomURI3) {
+		#Log format
+                local urec3: WS_MESSAGENOTNORMAL::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_uri=c$http$uri, $ws_data=wsdata];
+                c$ws_messagenotnormal = urec3;
+
+		#parse the input into username and password 
+		local array3 = split_string(wsdata, /,/);
+
+		#parse out input for username and decode from base64
+		local username3encoded = split_string(array3[0], /:/)[1][1:-2];
+		local username3 = decode_base64(username3encoded);
+		local wordsinusername3 = split_string(username3, / /);
+		
+		#test for common SQL injection words in username
+		for (w in wordsinusername3) {
+			if (SQLinjectionRegEx in to_lower(wordsinusername3[w])) {
+				#print fmt("SQL: %s", wordsinusername3[w]);
+				score = score +1;
+			};
+		};
+
+		#parse out input for username and decode from base64
+		local pass3encoded = split_string(array3[1], /:/)[1][1:-2];
+		local pass3 = decode_base64(pass3encoded);
+		local wordsinpass3 = split_string(pass3, / /);
+
+                #test for common SQL injection words in password
+                for (w in wordsinpass3) {
+                        if (SQLinjectionRegEx in to_lower(wordsinpass3[w])) {
+                                #print fmt("SQL: %s", wordsinpass3[w]);
+				score = score +1;
+                        };
+                };
+
+		if (score > 4) {
+			Log::write(WS_MESSAGENOTNORMAL::LOG, urec3);
+			NOTICE([$note=WS_MESSAGENOTNORMAL::SQL_Injection_words, $msg = fmt("SQL Injection words found going to %s", CustomURI3), $sub = fmt("username = %s and pass = %s", username3, pass3), $conn=c]);
+			#print score;
+		};
+	};
 }
