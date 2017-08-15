@@ -127,7 +127,7 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
 }
 
 event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data: string) {
-if (first2B$op != 8) {
+if (first2B$op == 1) {
 	local mkey = " - ";
 	local wsdata = " - ";
 	local xordata = "";
