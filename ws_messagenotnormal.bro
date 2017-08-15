@@ -5,7 +5,9 @@
 @load base/protocols/http
 @load base/protocols/conn
 @load bintools
+@load policy/frameworks/intel/seen
 
+#Create some constants 
 const CustomURI1 = "/command-execution";
 const ExpResp1 = /^3 packets transmitted,.+/;
 const CustomURI2 = "/reflected-xss";
@@ -14,6 +16,9 @@ const CustomURI3 = "/authenticate-user";
 const ExpResp3a = /^Welcome to your account\. How are you [a-zA-Z\' ]+\?/;
 const ExpResp3b = /<pre>Invalid username\/password<\/pre>/;
 const SQLinjectionRegEx = /.*(table_schema|floor|concat|having|union|select|delete|drop|declare|create|insert|column_name|table_name).*/;
+const CustomURI4 = "/post-comments";
+const HTMLRegExs: set[string] = ["href", "img", "src", "script", "alert", "onerror", "=", "<", ">", ":", "//"];
+
 
 #create namespace 
 module WS_MESSAGENOTNORMAL;
@@ -88,7 +93,6 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
 			local thearray = split_string(data, /\x0a/);
 			local pkts = thearray[(|thearray|-3)];
 			if (pkts != ExpResp1) {
-				#print c;
 				Log::write(WS_MESSAGENOTNORMAL::LOG, urec1); 
 				NOTICE([$note=WS_MESSAGENOTNORMAL::Unexpected_Response, $msg = fmt("Unexpected Response to %s", CustomURI1), $sub = fmt("reponse = %s", pkts), $conn=c]);  
 			};
@@ -102,7 +106,6 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
                 c$ws_messagenotnormal = urec2;
                 if (first2B$op == 1) {
                         if (data != ExpResp2 ) {
-                                #print c;
                                 Log::write(WS_MESSAGENOTNORMAL::LOG, urec2);
 				NOTICE([$note=WS_MESSAGENOTNORMAL::Unexpected_Response, $msg = fmt("Unexpected Response to %s", CustomURI2), $sub = fmt("reponse = %s", data), $conn=c]);
                         };
@@ -116,7 +119,6 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
                 c$ws_messagenotnormal = urec3;
                 if (first2B$op == 1) {
                         if ((data != ExpResp3a ) && (data != ExpResp3b)) {
-                                #print c;
                                 Log::write(WS_MESSAGENOTNORMAL::LOG, urec3);
                                 NOTICE([$note=WS_MESSAGENOTNORMAL::Unexpected_Response, $msg = fmt("Unexpected Response to %s", CustomURI3), $sub = fmt("reponse = %s", data), $conn=c]);
                         };
@@ -143,8 +145,9 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 		
 	wsdata = xordata;
 
-	#detect SQL injection words in the input and develop a score
-	local score = 0;
+	#detect SQL injection and HTML code words in the input and develop a score
+	local SQLscore = 0;
+	local HTMLscore = 0;
 
 	if (c$http$uri == CustomURI3) {
 		#Log format
@@ -162,8 +165,7 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 		#test for common SQL injection words in username
 		for (w in wordsinusername3) {
 			if (SQLinjectionRegEx in to_lower(wordsinusername3[w])) {
-				#print fmt("SQL: %s", wordsinusername3[w]);
-				score = score +1;
+				SQLscore = SQLscore +1;
 			};
 		};
 
@@ -175,15 +177,48 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
                 #test for common SQL injection words in password
                 for (w in wordsinpass3) {
                         if (SQLinjectionRegEx in to_lower(wordsinpass3[w])) {
-                                #print fmt("SQL: %s", wordsinpass3[w]);
-				score = score +1;
+				SQLscore = SQLscore +1;
                         };
                 };
 
-		if (score > 4) {
+		if (SQLscore > 4) {
 			Log::write(WS_MESSAGENOTNORMAL::LOG, urec3);
 			NOTICE([$note=WS_MESSAGENOTNORMAL::SQL_Injection_words, $msg = fmt("SQL Injection words found going to %s", CustomURI3), $sub = fmt("username = %s and pass = %s", username3, pass3), $conn=c]);
-			#print score;
 		};
 	};
+
+	if (c$http$uri == CustomURI4) {
+		#Log format
+                local urec4: WS_MESSAGENOTNORMAL::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_uri=c$http$uri, $ws_data=wsdata];
+                c$ws_messagenotnormal = urec4;
+
+                #parse the input into name and comments
+                local array4 = split_string(wsdata, /,/);
+
+                #parse out input for name 
+                local name4 = split_string1(array4[0], /:/)[1][1:-1];
+          
+                # test for HTML reg ex in name
+                for (r in HTMLRegExs) {
+                        if (r in to_lower(name4)) {
+                                HTMLscore = HTMLscore + 1;
+                        };
+                };
+
+	        #parse out input for comments
+                local comments4 = split_string1(array4[1], /:/)[1][1:-1];
+
+		# test for HTML reg ex in comments
+		for (r in HTMLRegExs) {
+			if (r in to_lower(comments4)) {
+				HTMLscore = HTMLscore + 1;
+			};
+		};
+
+                if (HTMLscore > 4) {
+                        Log::write(WS_MESSAGENOTNORMAL::LOG, urec4);
+                        NOTICE([$note=WS_MESSAGENOTNORMAL::SQL_Injection_words, $msg = fmt("HTML code found going to %s", CustomURI4), $sub = fmt("name = %s and comments = %s", name4, comments4), $conn=c]);
+                };
+        };
+
 }
