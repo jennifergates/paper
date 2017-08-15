@@ -18,7 +18,7 @@ const ExpResp3b = /<pre>Invalid username\/password<\/pre>/;
 const SQLinjectionRegEx = /.*(table_schema|floor|concat|having|union|select|delete|drop|declare|create|insert|column_name|table_name).*/;
 const CustomURI4 = "/post-comments";
 const HTMLRegExs: set[string] = ["href", "img", "src", "script", "alert", "onerror", "=", "<", ">", ":", "//"];
-
+const CustomURI5 = "/authenticate-user-blind";
 
 #create namespace 
 module WS_MESSAGENOTNORMAL;
@@ -127,6 +127,7 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
 }
 
 event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data: string) {
+if (first2B$op != 8) {
 	local mkey = " - ";
 	local wsdata = " - ";
 	local xordata = "";
@@ -149,7 +150,7 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 	local SQLscore = 0;
 	local HTMLscore = 0;
 
-	if (c$http$uri == CustomURI3) {
+	if ((c$http$uri == CustomURI3) || (c$http$uri == CustomURI5)) {
 		#Log format
                 local urec3: WS_MESSAGENOTNORMAL::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_uri=c$http$uri, $ws_data=wsdata];
                 c$ws_messagenotnormal = urec3;
@@ -161,6 +162,7 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 		local username3encoded = split_string(array3[0], /:/)[1][1:-2];
 		local username3 = decode_base64(username3encoded);
 		local wordsinusername3 = split_string(username3, / /);
+
 		
 		#test for common SQL injection words in username
 		for (w in wordsinusername3) {
@@ -183,7 +185,7 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 
 		if (SQLscore > 4) {
 			Log::write(WS_MESSAGENOTNORMAL::LOG, urec3);
-			NOTICE([$note=WS_MESSAGENOTNORMAL::SQL_Injection_words, $msg = fmt("SQL Injection words found going to %s", CustomURI3), $sub = fmt("username = %s and pass = %s", username3, pass3), $conn=c]);
+			NOTICE([$note=WS_MESSAGENOTNORMAL::SQL_Injection_words, $msg = fmt("SQL Injection words found going to %s", c$http$uri), $sub = fmt("username = %s and pass = %s", username3, pass3), $conn=c]);
 		};
 	};
 
@@ -220,5 +222,5 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
                         NOTICE([$note=WS_MESSAGENOTNORMAL::SQL_Injection_words, $msg = fmt("HTML code found going to %s", CustomURI4), $sub = fmt("name = %s and comments = %s", name4, comments4), $conn=c]);
                 };
         };
-
+};
 }
