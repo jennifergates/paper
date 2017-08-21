@@ -1,3 +1,15 @@
+################################################################################
+## WebSockets Protocol Analyzer Spicy Script
+## Jennifer Gates
+## August 2017
+##
+## This module parses HTTP GET request messages looking for the GET string and 
+## the  “Sec-WebSocket-Version” header. If both found, follow-on packets are 
+## considered WebSockets protocol packets and parsed accordingly.  HTTP responses
+## starting with “HTTP/1.1 101 Switching Proto” and the “Sec-WebSocket-Accept” 
+## header. If both found, follow-on packets are considered WebSockets protocol 
+## packets and parsed accordingly.
+################################################################################
 module WS_HANDSHAKE;
 
 import Spicy;
@@ -11,15 +23,18 @@ const DataEnd = b"\x53\x50\x49\x43\x59\x6a\x6c\x67";
 
 global gtotaldata: bytes =b"";
 
-#function to add a delimiting byte at the end of the ws packets to allow list to properly terminate
+
+# function to add a distinguishing byte at the end of the ws packets 
+# during parsing to allow list to properly terminate
 bytes terminate(b: bytes) {
 	return b + DataEnd;
 }
 
-#primary unit to store client originator Websocket handshake traffic and follow on websocket protocol packets
+# primary unit to store client originator Websocket handshake traffic  
+# uses sink to parse follow on websocket protocol data packets
 export type WS_Handshake = unit {
 
-        get    : /^(GET|get|Get) /;
+    get    : /^(GET|get|Get) /;
 	dvalue : DataValue;
 	headers : list<Header>;
 	end_of_hdrs : /\x0d\x0a\x0d\x0a/;
@@ -34,22 +49,21 @@ export type WS_Handshake = unit {
 	var messages: list<WS_Message>;
 	var totaldata: bytes;
 
-	# Need to stop parsing regular HTTP GET requests if no Sec-WebSocket-Version header
+	# stops parsing if HTTP GET request is not initiating Websocket handshake
+	# joins all headers into a string and searches for Sec-WebSocket-Version header
 	on headers {
 		local joinedheaders: bytes;
 		joinedheaders = b".".join(self.headers);
 		joinedheaders = joinedheaders.lower();
 		if (|joinedheaders.match(/.*sec-websocket-version.*/)| == 0){
-#			#print "NOT WEBSOCKET REQUEST";
 			Hilti::terminate();
 		}
 	}
 
-        on %done { 
+	# combines data fields from all websockset packets into one string
+    on %done { 
 		self.totaldata = gtotaldata;
-		#print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
-		#print self;
-	        gtotaldata = b" ";
+    	gtotaldata = b" ";
 		self.hs_sub.close();
 	}
 };
@@ -62,40 +76,41 @@ export type HS_Sub = unit(handshake: WS_Handshake) {
 		: DataEnd;
 };
 
-#primary unit to store server/responder Websocket handshake traffic and follow on websocket protocol packets 
+# primary unit to store server/responder Websocket handshake traffic 
+# uses sink to parse follow on websocket protocol data packets 
 export type WS_Handshake_Success = unit {
 
-        success     : /^(HTTP|http)\/1.1 101 Switching Proto/;
-        dvalue      : DataValue;
-        svrheaders     : list<Header>;
-        end_of_hdrs : /\x0d\x0a\x0d\x0a/;
-        wss_data : bytes &eod &convert=terminate($$) &transient -> self.hss_sub;
+    success     : /^(HTTP|http)\/1.1 101 Switching Proto/;
+    dvalue      : DataValue;
+    svrheaders     : list<Header>;
+    end_of_hdrs : /\x0d\x0a\x0d\x0a/;
+    wss_data : bytes &eod &convert=terminate($$) &transient -> self.hss_sub;
 
-        on %init {
-                self.hss_sub.connect(new HSS_Sub(self));
-        }
+	on %init {
+		self.hss_sub.connect(new HSS_Sub(self));
+    }
 
-	# Need to stop parsing regular HTTP 101 responses if no Sec-WebSocket-Accept header
+    var hss_sub: sink;
+	var smessages: list<WS_Message>;
+	var totaldata: bytes;
+
+	# stops parsing if HTTP reply is not responding to Websocket handshake
+	# joins all headers into a string and searches for Sec-WebSocket-Accept header
 	on svrheaders {
 		local sjoinedheaders: bytes;
 		sjoinedheaders = b".".join(self.svrheaders);
 		sjoinedheaders = sjoinedheaders.lower();
 		if (|sjoinedheaders.match(/.*sec-websocket-accept.*/)| == 0){
-#			print "NOT WEBSOCKET RESPONSE";
 			Hilti::terminate();
 		}
 	}
 
-        var hss_sub: sink;
-	var smessages: list<WS_Message>;
-	var totaldata: bytes;
-
-        on %done {
-                #print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
+	# combines data fields from all websockset packets into one string
+    on %done {
 		self.totaldata = gtotaldata;
 		gtotaldata = b" ";
-		#print self;
-        }
+		self.hss_sub.close();
+    }
 };
 
 # sub unit to put responder websocket protocol packets into a list
@@ -103,29 +118,29 @@ export type HSS_Sub = unit (shandshake: WS_Handshake_Success) {
         wss_msgs : list<WS_Message>{
 		shandshake.smessages = self.wss_msgs;
 	}
-                    : DataEnd;
+       : DataEnd;
 };
 
 # unit to parse http headers in handshake packets
 export type Header = unit {
-		: LineEnd;
+		    : LineEnd;
 	name	: BeforeColon;
-		: Colon;
+		    : Colon;
 	value	: DataValue;
 };
 
 # sub unit to parse WS protocol fields from websockets packet list
 export type WS_Message = unit {
 	# start with first 2 bytes as a bitfield to get access to bit level flags
-        first2B: bitfield(16) {
-                fin: 0;
-                rsv1: 1;
-                rsv2: 2;
-                rsv3: 3;
-                op: 4..7;
-                mask: 8;
-                pay1: 9..15;
-        } &bitorder = Spicy::BitOrder::MSB0;
+    first2B: bitfield(16) {
+        fin: 0;
+        rsv1: 1;
+        rsv2: 2;
+        rsv3: 3;
+        op: 4..7;
+        mask: 8;
+        pay1: 9..15;
+    } &bitorder = Spicy::BitOrder::MSB0;
 	
 	# determine payload length and start point for next field
 	switch ( self.first2B.pay1 ) {
@@ -141,18 +156,15 @@ export type WS_Message = unit {
 	};
 	
 	# grab the payload data. Leave unmasking to bro script
-        switch ( self.first2B.pay1 ) {
-                126 -> data: bytes &length=self.extpay.pay2 ;
-                127 -> data: bytes &length=self.extpayc.pay3 ;
-                * -> data: bytes &length=self.first2B.pay1;
-        };
+    switch ( self.first2B.pay1 ) {
+        126 -> data: bytes &length=self.extpay.pay2 ;
+        127 -> data: bytes &length=self.extpayc.pay3 ;
+        * -> data: bytes &length=self.first2B.pay1;
+    };
 
+    # append data from this packet to connection's data string
 	on data {
 		gtotaldata += self.data;
-	}
-
-	on %error {
-		#print "\n*****ws_handshake.spicy WS_Message ERROR";
 	}
 
 };
@@ -166,8 +178,4 @@ export type ExtPay = unit {
 # define this new type which parses out the extended continued payload length field
 export type ExtPayC = unit {
 	pay3: uint<64>;
-	on pay3 {
-		#print "pay3";
-		#print self.pay3;
-	}
 };
