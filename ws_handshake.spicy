@@ -40,15 +40,15 @@ export type WS_Handshake = unit {
 		joinedheaders = b".".join(self.headers);
 		joinedheaders = joinedheaders.lower();
 		if (|joinedheaders.match(/.*sec-websocket-version.*/)| == 0){
-#			print "NOT WEBSOCKET REQUEST";
+#			#print "NOT WEBSOCKET REQUEST";
 			Hilti::terminate();
 		}
 	}
 
         on %done { 
 		self.totaldata = gtotaldata;
-		print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
-		print self;
+		#print "\n*****ws_handshake.spicy WS_Handshake on done:"; 
+		#print self;
 	        gtotaldata = b" ";
 		self.hs_sub.close();
 	}
@@ -91,10 +91,10 @@ export type WS_Handshake_Success = unit {
 	var totaldata: bytes;
 
         on %done {
-                print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
+                #print "\n*****ws_handshake.spicy WS_Handshake_Success on done:";
 		self.totaldata = gtotaldata;
 		gtotaldata = b" ";
-		print self;
+		#print self;
         }
 };
 
@@ -152,7 +152,7 @@ export type WS_Message = unit {
 	}
 
 	on %error {
-		print "\n*****ws_handshake.spicy WS_Message ERROR";
+		#print "\n*****ws_handshake.spicy WS_Message ERROR";
 	}
 
 };
@@ -167,7 +167,7 @@ export type ExtPay = unit {
 export type ExtPayC = unit {
 	pay3: uint<64>;
 	on pay3 {
-		print "pay3";
-		print self.pay3;
+		#print "pay3";
+		#print self.pay3;
 	}
 };
