@@ -1,3 +1,14 @@
+################################################################################
+## WebSockets Protocol Analyzer Definition Script
+## Jennifer Gates
+## August 2017
+##
+## The Bro protocol analyzer definition script (*.evt) provides the interface 
+## between Bro and the Spicy script. It specifies the grammar file that contains 
+## the Spicy script and where to hook into Bro’s traffic processing. It then 
+## defines the Bro events to create based on the parsed data.
+################################################################################
+
 grammar ws_handshake.spicy;
 
 protocol analyzer WS_HANDSHAKE over TCP:
@@ -8,37 +19,43 @@ protocol analyzer WS_HANDSHAKE over TCP:
     port 12345/tcp,
     port 44394/tcp;
 
+# event triggers when the WS_Handshake type is parsed. The connection and 
+# the list of headers are passed to it.
 on WS_HANDSHAKE::WS_Handshake->
-        event ws_handshake($conn, self.headers);
+    event ws_handshake($conn, self.headers);
 
+# event triggers when the Header type is parsed. The connection, 
+# the header name, and its value are passed to it.
 on WS_HANDSHAKE::Header->
 	event header($conn, self.name, self.value);
 
+# event triggers when the WS_Handshake type is parsed. The connection, 
+# the list of headers, and the http request line are passed to it.
 on WS_HANDSHAKE::WS_Handshake->
 	event allheaders($conn, self.headers, self.dvalue);
 
+# event triggers when the WS_Handshake_Success type is parsed. The connection, 
+# the list of headers, and the http response line are passed to it.
 on WS_HANDSHAKE::WS_Handshake_Success->
 	event allheaders($conn, self.svrheaders, self.dvalue);
 
+# event triggers when the first2B WS_Message type is parsed. The connection, 
+# the opcode, and the mask flag are passed to it.
 on WS_HANDSHAKE::WS_Message::first2B ->
-        event ws_messages($conn, self.first2B.op, self.first2B.mask);
+    event ws_messages($conn, self.first2B.op, self.first2B.mask);
 
+# event triggers when the  WS_Message type is parsed and both the mask key and data 
+# fields are populated. The connection, the mask key, and the data are passed to it.
 on WS_HANDSHAKE::WS_Message if (( self?.maskkey) && (self?.data)) ->
-        event ws_maskedmessage($conn, self.first2B, self.maskkey, self.data);
+    event ws_maskedmessage($conn, self.first2B, self.maskkey, self.data);
 
+# event triggers when the  WS_Message type is parsed, mask key is not set, and data 
+# fields is populated. The connection, the first2B, and the data are passed to it.
 on WS_HANDSHAKE::WS_Message if (( !self?.maskkey ) && (self?.data))->
 	event ws_unmaskedmessage($conn, self.first2B, self.data);
 
+# event triggers when the  WS_Message type is parsed, mask key is not set, and data 
+# fields is not populated. The connection and the data are passed to it.
 on WS_HANDSHAKE::WS_Message if (( !self?.maskkey) && (!self?.data)) ->
 	event ws_nodatamessage($conn, self.first2B);
 
-# might need to break down further and send individual messages instead of whole list
-# see hilti/bro/tests/spicy/tuple-optional.bro example for more info
-#on WS_HANDSHAKE::WS_Handshake->
-#	event orig_websockets($conn, self.messages);
-
-#on WS_HANDSHAKE::WS_Handshake_Success->
-#	event resp_websockets($conn, self.smessages);
-
-#on WS_HANDSHAKE::WS_Message->
-#	event ws_wmessage($conn, self.first2B, self.?maskkey, self.?data);
