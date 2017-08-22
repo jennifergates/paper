@@ -3,7 +3,8 @@
 from scapy.all import *
 
 path = '../pcaps/'
-files = ["blindsql2.pcap", "ipv4-websocket-segmented.pcap", "sqlagent.pcap", "websocket.pcap", "csrf-pwdchange.pcap", "test3.pcap", "websockets-issue-68-notng.pcap", "ndn-tlv-websocket-notng.pcap"]
+# Make sure files are in ascending time order or Bro will discard older packets.
+files = ["ndn-tlv-websocket-notng.pcap", "ipv4-websocket-segmented.pcap", "websockets-issue-68-notng.pcap", "websocket.pcap", "test3.pcap", "sqlagent.pcap", "csrf-pwdchange.pcap", "blindsql2.pcap"]
 for f in files:
     inpcap = path + f
     print inpcap
