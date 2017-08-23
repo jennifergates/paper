@@ -1,22 +1,30 @@
-#Module to parse and log WebSocket handshake information from http headers
+# *****************************************************************************
+# WebSockets Message Bro script
+# Jennifer Gates
+# August 2017
+# 
+# Script to expose the WebSockets protocol fields and payload data. The 
+# messages are separated into three different types: masked (from the client), 
+# unmasked (from the server), and no data (control messages from either host) 
+# for processing within the script, but all three log to the WS_Message.log file. 
+# The log file contains the connection UID, the client IP, the server IP, the 
+# server port, OpCode, mask key, and payload data. 
+# *****************************************************************************
 
-#load processes the __load__.bro scripts in the directories loaded 
-#which basically includes libraries
+# load processes the __load__.bro scripts in the directories loaded 
 @load base/protocols/http
 @load base/protocols/conn
 @load bintools
 
-#create namespace 
+# create namespace 
 module WS_MESSAGE;
 
 export {
-	#Create an ID for our new stream. 
+	# Create an ID for our new stream. 
 	redef enum Log::ID += { LOG };
 
-	#Define the record type that will contain the data to log.
+	# Define the record type that will contain the data to log.
 	type Info: record {
-		## Timestamp for when the request happened
-		#ws_ts: time &log;
 		## Unique ID for the connection
 		ws_uid: string &log;
 		## Client IP requesting WebSocket
@@ -36,17 +44,17 @@ export {
 
 event bro_init()  &priority=5
 {
-	#Create the stream. this adds a default filter automatically
+	# Create the stream. this adds a default filter automatically
 	Log::create_stream(WS_MESSAGE::LOG, [$columns=Info, $path="WS_Message"]);
 }
 
-#add a new field to the connection record so that data is accessible in variety of event handlers
+# add a new field to the connection record so that data is accessible in variety of event handlers
 redef record connection += {
 	ws_message: Info &optional;
 };
 
 
-#define the first2B tuple for Bro for the record that will be passed in from spicy parser
+# define the first2B tuple for Bro for the record that will be passed in from spicy parser
 type Brofirst2B: record {
 	fin: count;
 	rsv1: count;
@@ -57,6 +65,7 @@ type Brofirst2B: record {
 	pay1: count;
 };
 
+# log information from a message with masked data
 event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data: string) {
 	local mkey = " - ";
 	local wsdata = " - ";
@@ -67,7 +76,7 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 
 	local ct: count = 0;
 	
-	#XOR lookup function provided by https://github.com/justbeck/bro-xorpe/blob/master/bintools.bro
+	# XOR lookup function provided by https://github.com/justbeck/bro-xorpe/blob/master/bintools.bro
 	# mask key is 4 bytes so need to mod to iterate through bytes
 	for ( byte in data) {
 		xordata += BinTools::xor(byte, mkey[(ct % 4)]);
@@ -76,13 +85,14 @@ event ws_maskedmessage(c: connection, first2B: Brofirst2B, maskkey: string, data
 		
 	wsdata = xordata;
 
-	#Log format
+	# Log format
 	local rec: WS_MESSAGE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_opcode=first2B$op, $ws_maskkey=mkey, $ws_data=wsdata];
 	c$ws_message = rec;
 
 	Log::write(WS_MESSAGE::LOG, rec);	
 }
 
+# log information from a message with unmasked data
 event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
         local mkey = " - ";
         local wsdata = data;
@@ -93,6 +103,7 @@ event ws_unmaskedmessage(c: connection, first2B: Brofirst2B, data: string) {
         Log::write(WS_MESSAGE::LOG, urec);
 }
 
+# log information from a message with no data
 event ws_nodatamessage(c: connection, first2B: Brofirst2B) {
         local mkey = " - ";
         local wsdata = " - ";
