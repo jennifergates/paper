@@ -1,5 +1,5 @@
 # *****************************************************************************
-# HTTP Upgrade to WebSockets Handshake Bro script
+# WebSockets Handshake Bro script
 # Jennifer Gates
 # August 2017
 #
