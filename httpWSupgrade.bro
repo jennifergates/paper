@@ -1,14 +1,14 @@
-################################################################################
-## HTTP Upgrade to WebSockets Handshake Bro script
-## Jennifer Gates
-## August 2017
-##
-## Using the http_all_headers event, creates the httpWSupgrade.log file. The log 
-## file provides WebSockets handshake header information such as the host, URI, 
-## origin, location, subprotocols, and extensions, as well as basic connection 
-## information such as the timestamp, UID, server IP address, server port, and 
-## client IP address.
-################################################################################
+# *****************************************************************************
+# HTTP Upgrade to WebSockets Handshake Bro script
+# Jennifer Gates
+# August 2017
+#
+# Using the http_all_headers event, creates the httpWSupgrade.log file. The log 
+# file provides WebSockets handshake header information such as the host, URI, 
+# origin, location, subprotocols, and extensions, as well as basic connection 
+# information such as the timestamp, UID, server IP address, server port, and 
+# client IP address.
+# *****************************************************************************
 
 #processes the __load__.bro scripts in the directories loaded 
 @load base/protocols/http
