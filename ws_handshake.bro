@@ -1,4 +1,15 @@
-#Module to parse and log WebSocket handshake information from http headers
+# *****************************************************************************
+# HTTP Upgrade to WebSockets Handshake Bro script
+# Jennifer Gates
+# August 2017
+#
+# This script takes the WebSockets connection parsed by the Spicy script and, 
+# using the allheaders event, creates the WS_Handshake.log file. The log 
+# file provides WebSockets handshake header information such as the host, URI, 
+# origin, location, subprotocols, and extensions, as well as basic connection 
+# information such as the timestamp, UID, server IP address, server port, and 
+# client IP address.
+# *****************************************************************************
 
 #load processes the __load__.bro scripts in the directories loaded 
 #which basically includes libraries
@@ -17,7 +28,7 @@ export {
 		## Indicates if log info is for WebSocket Handshake Request or Reply
 		ws_handshake: string &log;  
 		## Timestamp for when the request happened
-		#ws_ts: time &log;
+		ws_ts: time &log;
 		## Unique ID for the connection
 		ws_uid: string &log;
 		## Client IP requesting WebSocket
@@ -32,7 +43,6 @@ export {
 		ws_uri: string &log;
 		## Value of the User-Agent header from the client
 		ws_useragent: string &log;
-		#### Not sure the key/accept is needed to detect any exploits
 		## Value of the client's SEC-WEBSOCKET-KEY if a request, still base64 encoded 
 		## or Value of the servers's SEC-WEBSOCKET-ACCEPT if a reply,  still base64 encoded 
 		ws_acceptkey: string &log;  
@@ -42,7 +52,6 @@ export {
 		ws_location: string &log;
 		## Value of the SEC-WEBSOCKET-PROTOCOL header
 		ws_protocol: string &log;
-		#### Are these useful for detecting any exploits?
 		## Value of Sec-WebSocket-Extensions if present
 		ws_extensions: string &log;
 	};
@@ -50,11 +59,11 @@ export {
 
 event bro_init()  &priority=5
 {
-	#Create the stream. this adds a default filter automatically
+	# Create the stream. this adds a default filter automatically
 	Log::create_stream(WS_HANDSHAKE::LOG, [$columns=Info, $path="WS_Handshake"]);
 }
 
-#add a new field to the connection record so that data is accessible in variety of event handlers
+# add a new field to the connection record so that data is accessible in variety of event handlers
 redef record connection += {
 	ws_handshake: Info &optional;
 };
@@ -68,52 +77,36 @@ type BroHdr: record {
 # define for Bro the vector that will be passed in from spicy parser as the headers list
 type BroHdrs: vector of BroHdr;
 
+# define the first2B tuple for Bro for the record that will be passed in from spicy parser
+type Brofirst2B: record {
+	fin: count;
+	rsv1: count;
+	rsv2: count;
+	rsv3: count;
+	op: int;
+	mask: count;
+	pay1: int;
+};
+
 # define for Bro the record that will be passed in from spicy parser in the ws messages list
 #<first2B=(fin=1, rsv1=0, rsv2=0, rsv3=0, op=1, mask=1, pay1=12)
-#type BroMsg: record {
-#	first2B: string;
-#	fin1: string;
-#	rsv1: string;
-#	rsv2: string;
-#	rsv3: string;
-#	op: string;
-#	mask: string;
-#	pay1: count;
-#	pay2: count &optional;
-#	pay3: count &optional;
-#	maskkey: string &optional;
-#	data: string;
-#};
+type BroMsg: record {
+	first2B: Brofirst2B;
+	pay2: int &optional;
+	pay3: int &optional;
+	maskkey: string &optional;
+	data: string &optional;
+};
 
 # define for Bro the vector that will be passed in from spicy parser as the ws messages list
-#type BroMsgs: vector of BroMsg;
+type BroMsgs: vector of BroMsg;
 
-#event orig_websockets(c: connection, msgs: BroMsgs) {
-#	print BroMsgs;
-#}
-
-#### Not needed?
-event ws_handshake(c: connection, hdrlist: BroHdrs) {
-	print " ";
-	print "*****ws_handshake.bro ws_handshake event:";
-}
-
-#### Not needed?
-event header(c: connection, name: string, value: string) {
-	if ( to_lower(name) == "sec-websocket-key") {
-		print " ";
-		print "*****ws_handshake.bro header event:";
-		print value;	
-	}
-}
 
 # event that is basically same data as http parser alone with custom bro script, which this code is from
 event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
-        print " ";
-        print "*****ws_handshake.bro allheaders event:";
+
 	#initialize non-required fields or fields not always present in a packet
-	#print c;
-	print reqlinedata;
+
 	local uri = " - ";
 	local host = " - ";
 	local origin = " - ";
@@ -127,20 +120,16 @@ event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
 	local cltip: addr;
 	local svrp: port;
 
-	#look through all headers for handshake headers to log
+	# look through all headers for handshake headers to log
 	for (i in hlist)
 	{
 
-		#print hlist[i];
-		#start with a blank handshake until logic determines if this header is a websocket handshake header
+		# start with a blank handshake until logic determines if this header is a websocket handshake header
 		handshake=" ";
 
 		# if this is a client request to handshake, the client must indicate the version as 13 per the RFC
-		#### Should these "in" statements be set to lowercase comparisons since http rfc says case insensitive?
-		#### Or does bro http script normalize the field names?
 		if ("sec-websocket-version" in to_lower(hlist[i]$name) && "13" in hlist[i]$value )  
 		{
-			print "1313131313131313";
 			handshake="REQUEST";
 			
 						
@@ -195,10 +184,8 @@ event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
 
 		# if this is a server response to a successful handshake, it will have a status code of 101
 		# To test if a field that is &optional has been assigned a value, use the ?$operator
-		#if ("upgrade" in to_lower(hlist[i]$name) && "websocket" in to_lower(hlist[i]$value) && c$http?$status_code && c$http$status_code == 101)  
 		if ("sec-websocket-accept" in to_lower(hlist[i]$name) )
 		{
-			print "101101101101101101101101";
 			handshake = "REPLY";
 
 			for (x in hlist)
@@ -223,7 +210,7 @@ event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
 				{
 					wsproto=hlist[x]$value;
 				} ;				
-				#In the Reply, there could be multiple extensions headers 
+				# In the Reply, there could be multiple extensions headers 
 				if ( "sec-websocket-extensions" in to_lower(hlist[x]$name) )
 				{
 					if ( wsexts == " - " )
@@ -241,9 +228,8 @@ event allheaders(c: connection, hlist: BroHdrs, reqlinedata: string) {
 		# if a handshake header was found, log the handshake header information to ws_handshake.log
 		if (|handshake| > 1)
 		{
-		#Log format
-		#local rec: WS_HANDSHAKE::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=host, $ws_uri=uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
-		local rec: WS_HANDSHAKE::Info = [$ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey,$ws_host=host, $ws_uri=uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
+		# Log format
+		local rec: WS_HANDSHAKE::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey,$ws_host=host, $ws_uri=uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
 
 			
 		c$ws_handshake = rec;
