@@ -3,25 +3,25 @@
 # Jennifer Gates
 # August 2017
 #
-# Using the http_all_headers event, creates the httpWSupgrade.log file. The log 
-# file provides WebSockets handshake header information such as the host, URI, 
-# origin, location, subprotocols, and extensions, as well as basic connection 
-# information such as the timestamp, UID, server IP address, server port, and 
-# client IP address.
+# Using the http_all_headers event, creates the httpWSupgrade.log file. The 
+# log file provides WebSockets handshake header information such as the host,
+# URI, origin, location, subprotocols, and extensions, as well as basic 
+# connection information such as the timestamp, UID, server IP address, server 
+# port, and client IP address.
 # *****************************************************************************
 
-#processes the __load__.bro scripts in the directories loaded 
+# processes the __load__.bro scripts in the directories loaded 
 @load base/protocols/http
 @load base/protocols/conn
 
-#create namespace 
+# create namespace 
 module httpWSupgrade;
 
 export {
-	#Create an ID for our new stream. 
+	# Create an ID for our new stream. 
 	redef enum Log::ID += { LOG };
 
-	#Define the record type that will contain the data to log.
+	# Define the record type that will contain the data to log.
 	type Info: record {
 		## Indicates if log info is for WebSocket Handshake Request or Reply
 		ws_handshake: string &log;  
@@ -41,8 +41,8 @@ export {
 		ws_uri: string &log;
 		## Value of the User-Agent header from the client
 		ws_useragent: string &log;
-		## Value of the client's SEC-WEBSOCKET-KEY if a request, still base64 encoded 
-		## or Value of the servers's SEC-WEBSOCKET-ACCEPT if a reply,  still base64 encoded 
+		## Value of the client's SEC-WEBSOCKET-KEY if a request, base64  
+		## or Value of the servers's SEC-WEBSOCKET-ACCEPT if a reply, base64  
 		ws_acceptkey: string &log;  
 		## Value of the ORIGIN header
 		ws_origin: string &log;
@@ -57,21 +57,22 @@ export {
 
 event bro_init()  &priority=5
 {
-	#Create the stream. this adds a default filter automatically
+	# Create the stream. this adds a default filter automatically
 	Log::create_stream(httpWSupgrade::LOG, [$columns=Info, $path="httpWSupgrade"]);
 }
 
-#add a new field to the connection record so that data is accessible in variety of event handlers
+# add a new field to the connection record so that data is accessible in 
+# variety of event handlers
 redef record connection += {
 	httpwsupgrade: Info &optional;
 };
 
-#use http_all_headers event as defined in Bro_HTTP.events.bif.bro. It returns a list of headers
-#indexed by order in packet and containing name/value pairs
+# use http_all_headers event as defined in Bro_HTTP.events.bif.bro. It returns 
+# a list of headers indexed by order in packet and containing name/value pairs
 event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 {
 	
-	#initialize non-required fields or fields not always present in a packet
+	# initialize non-required fields or fields not always present in a packet
 	local origin = " - ";
 	local location = " - ";
 	local acceptkey = " - ";
@@ -83,14 +84,16 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 	local cltip: addr;
 	local svrp: port;
 
-	#look through all headers for handshake headers to log
+	# look through all headers for handshake headers to log
 	for (i in hlist)
 	{
 
-		#start with a blank handshake until logic determines if this header is a websocket handshake header
+		# start with a blank handshake until logic determines if this header 
+		# is a websocket handshake header
 		handshake=" ";
 
-		# if this is a client request to handshake, the client must indicate the version as 13 per the RFC
+		# if this is a client request to handshake, the client must indicate 
+		# the version as 13 per the RFC
 		if ("SEC-WEBSOCKET-VERSION" in hlist[i]$name && "13" in hlist[i]$value )  
 		{
 			handshake="REQUEST";
@@ -113,7 +116,7 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 				{
 					useragent=hlist[y]$value;
 				} ;
-				#In the Request, there could be multiple protocols headers  
+				# In the Request, there could be multiple protocols headers  
 				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[y]$name )
 				{
 					if ( wsproto == " - " )
@@ -137,8 +140,9 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 
 		};
 
-		# if this is a server response to a successful handshake, it will have a status code of 101
-		# To test if a field that is &optional has been assigned a value, use the ?$operator
+		# if this is a server response to a successful handshake, it will have
+		# a status code of 101 To test if a field that is &optional has been 
+		# assigned a value, use the ?$operator
 		if ("UPGRADE" in hlist[i]$name && "websocket" in to_lower(hlist[i]$value) && c$http?$status_code && c$http$status_code == 101)  
 		{
 			handshake = "REPLY";
@@ -160,12 +164,13 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 				{
 					location=hlist[x]$value;
 				};
-				# Per the RFC, the protocol header can only appear once in a server reply, unlike in the request
+				# Per the RFC, the protocol header can only appear once in a 
+				# server reply, unlike in the request
 				if ( "SEC-WEBSOCKET-PROTOCOL" in hlist[x]$name )
 				{
 					wsproto=hlist[x]$value;
 				} ;				
-				#In the Reply, there could be multiple extensions headers 
+				# In the Reply, there could be multiple extensions headers 
 				if ( "SEC-WEBSOCKET-EXTENSIONS" in hlist[x]$name )
 				{
 					if ( wsexts == " - " )
@@ -180,10 +185,11 @@ event http_all_headers(c: connection, is_orig: bool, hlist: mime_header_list)
 		};
 
 
-		# if a handshake header was found, log the handshake header information to httpWSupgrade.log
+		# if a handshake header was found, log the handshake header 
+		# information to httpWSupgrade.log
 		if (|handshake| > 1)
 		{
-		#Log format
+		# Log format
 		local rec: httpWSupgrade::Info = [$ws_ts=c$http$ts, $ws_uid=c$uid, $ws_client=c$id$orig_h, $ws_svr=c$id$resp_h, $ws_svrp=c$id$resp_p, $ws_origin=origin, $ws_location=location, $ws_acceptkey=acceptkey, $ws_host=c$http$host, $ws_uri=c$http$uri, $ws_useragent=useragent, $ws_handshake=handshake, $ws_protocol=wsproto, $ws_extensions=wsexts];
 			
 		c$httpwsupgrade = rec;
